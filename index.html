@@ -505,8 +505,28 @@ const sym=c=>c==='USD'?'$':'€';
 const rate=c=>c==='USD'?0.92:1;
 const clr=n=>n>0?'pos':n<0?'neg':'neut';
 const sgn=n=>n>=0?'+':'';
-const PROXY=u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
-const R2J=u=>`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(u)}&count=10`;
+// Proxies CORS - plusieurs en fallback
+const PROXIES=[
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+];
+
+async function PROXY_FETCH(url, opts={}){
+  for(const proxy of PROXIES){
+    try{
+      const r=await fetch(proxy(url),{...opts,signal:AbortSignal.timeout(6000)});
+      if(!r.ok) continue;
+      const text=await r.text();
+      if(!text||text.startsWith('<')) continue; // HTML error page
+      return JSON.parse(text);
+    }catch{}
+  }
+  return null;
+}
+
+// Keep PROXY for backward compat
+const PROXY=u=>`https://corsproxy.io/?${encodeURIComponent(u)}`;
 
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast on '+type;clearTimeout(el._t);el._t=setTimeout(()=>el.className='toast',2800);}
 function st(id,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('tab-'+id).classList.add('on');btn.classList.add('on');({dashboard:renderDash,positions:renderPos,realised:renderReal,watchlist:renderWatch})[id]?.();}
@@ -516,8 +536,8 @@ setInterval(()=>{const n=new Date();document.getElementById('hdr-time').textCont
 async function yahooPrice(ticker){
   const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1mo`;
   try{
-    const r=await fetch(PROXY(url),{signal:AbortSignal.timeout(9000)});if(!r.ok)throw 0;
-    const d=await r.json();const m=d?.chart?.result?.[0]?.meta;if(!m)throw 0;
+    const d=await PROXY_FETCH(url);
+    const m=d?.chart?.result?.[0]?.meta;if(!m)throw 0;
     const q=d?.chart?.result?.[0]?.indicators?.quote?.[0]||{};
     const closes=(q.close||[]).filter(Boolean);
     const price=m.regularMarketPrice,prev=m.chartPreviousClose||m.previousClose||price;
@@ -532,8 +552,7 @@ async function yahooPrice(ticker){
 async function yahooFundamentals(ticker){
   const url=`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=summaryDetail,defaultKeyStatistics,financialData,assetProfile`;
   try{
-    const r=await fetch(PROXY(url),{signal:AbortSignal.timeout(10000)});if(!r.ok)throw 0;
-    const d=await r.json();
+    const d=await PROXY_FETCH(url);
     const res=d?.quoteSummary?.result?.[0];if(!res)return null;
     const sd=res.summaryDetail||{},ks=res.defaultKeyStatistics||{},fd=res.financialData||{},ap=res.assetProfile||{};
     return{
@@ -553,18 +572,28 @@ async function yahooFundamentals(ticker){
   }catch{return null;}
 }
 
+async function testYahooConnection(){
+  toast('Test de connexion Yahoo Finance…');
+  const r = await yahooPrice('MC.PA');
+  if(r.ok){
+    toast('✓ Connexion OK ! MC.PA = €'+r.price.toFixed(2),'ok');
+  } else {
+    toast('✗ Yahoo Finance inaccessible depuis ce réseau','er');
+  }
+}
+
 async function refreshAll(){
-  toast('Actualisation des cours en cours…');
+  toast('Actualisation en cours…');
+  let updated=0, failed=0;
   await Promise.all([
     ...POS.map(async p=>{
       const inp=document.getElementById('ci-'+p.id);
       if(inp)inp.classList.add('ld');
       const r=await yahooPrice(p.ticker);
       if(r.ok){
-        p.current=r.price;
-        p.currency=r.currency||p.currency;
+        p.current=r.price; p.currency=r.currency||p.currency; updated++;
         if(inp){inp.value=fmt(r.price);inp.classList.remove('ld');inp.classList.add('ok');setTimeout(()=>inp.classList.remove('ok'),2000);}
-      } else if(inp) inp.classList.remove('ld');
+      } else { failed++; if(inp) inp.classList.remove('ld'); }
     }),
     ...WTCH.map(async w=>{
       const [r,fund]=await Promise.all([yahooPrice(w.ticker),yahooFundamentals(w.ticker)]);
@@ -575,7 +604,8 @@ async function refreshAll(){
     })
   ]);
   save();renderDash();renderPos();renderWatch();
-  toast('Cours mis à jour ✓','ok');
+  if(updated>0) toast(updated+' cours mis à jour ✓','ok');
+  else toast('Échec : Yahoo Finance inaccessible. Essaie depuis un autre réseau.','er');
 }
 
 async function autoFill(){
@@ -708,9 +738,8 @@ async function smartAutocomplete(query, dropdownId, cbName){
     acDebounce=setTimeout(async()=>{
       const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=true`;
       try{
-        const r=await fetch(PROXY(url),{signal:AbortSignal.timeout(3000)});
-        const d=await r.json();
-        const quotes=(d.quotes||[]).filter(x=>['EQUITY','ETF','CRYPTOCURRENCY','FUTURE'].includes(x.quoteType)).slice(0,8);
+        const d=await PROXY_FETCH(url);
+        const quotes=(d?.quotes||[]).filter(x=>['EQUITY','ETF','CRYPTOCURRENCY','FUTURE'].includes(x.quoteType)).slice(0,8);
         if(quotes.length) showDropdown(dd,quotes.map(q=>({symbol:q.symbol,name:q.longname||q.shortname||q.symbol,exchange:q.exchDisp||q.exchange||'',type:q.quoteType||''})),cbName);
       }catch{}
     },250);
