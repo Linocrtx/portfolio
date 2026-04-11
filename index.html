@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -377,10 +376,10 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
 </header>
 
 <nav class="nav">
-  <button class="nb on"  onclick="st('dashboard',this)">Dashboard</button>
-  <button class="nb"     onclick="st('positions',this)">Positions</button>
-  <button class="nb"     onclick="st('realised',this)">PV/MV réalisées</button>
-  <button class="nb"     onclick="st('watchlist',this)">Watchlist</button>
+  <button class="nb on"  onclick="st('dashboard',this)">Tableau de bord</button>
+  <button class="nb"     onclick="st('positions',this)">Mes achats</button>
+  <button class="nb"     onclick="st('realised',this)">Mes ventes</button>
+  <button class="nb"     onclick="st('watchlist',this)">Surveillance</button>
 </nav>
 
 <main class="main">
@@ -412,7 +411,7 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
 <!-- POSITIONS -->
 <div class="tab" id="tab-positions">
   <div class="fp">
-    <div class="fp-title">Ajouter une position</div>
+    <div class="fp-title">Enregistrer un achat</div>
     <div style="position:relative;" class="ac-wrap">
       <div class="search-bar" style="margin-bottom:8px;">
         <span style="color:var(--muted);font-size:16px;flex-shrink:0;">⌕</span>
@@ -439,7 +438,7 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
     </div>
     <button class="btn-primary" onclick="addPos()">+ Ajouter la position</button>
   </div>
-  <div class="sh">Positions ouvertes</div>
+  <div class="sh">Mes achats en cours</div>
   <div class="tw" id="pos-tbl"></div>
 </div>
 
@@ -458,7 +457,7 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
     </div>
     <button class="btn-primary" onclick="addReal()">+ Enregistrer la vente</button>
   </div>
-  <div class="sh">Historique des ventes</div>
+  <div class="sh">Historique de mes ventes</div>
   <div class="tw" id="real-tbl"></div>
 </div>
 
@@ -555,14 +554,27 @@ async function yahooFundamentals(ticker){
 }
 
 async function refreshAll(){
-  toast('Actualisation des cours…');
+  toast('Actualisation des cours en cours…');
   await Promise.all([
-    ...POS.map(async p=>{const inp=document.getElementById('ci-'+p.id);if(inp)inp.classList.add('ld');const r=await yahooPrice(p.ticker);if(r.ok){p.current=r.price;if(inp){inp.value=fmt(r.price);inp.classList.remove('ld');inp.classList.add('ok');setTimeout(()=>inp.classList.remove('ok'),2000);}}else if(inp)inp.classList.remove('ld');}),
-    ...WTCH.map(async w=>{const r=await yahooPrice(w.ticker);if(r.ok){w.price=r.price;w.chg=r.chg;w.name=r.name||w.name;w.history=r.history;}})
+    ...POS.map(async p=>{
+      const inp=document.getElementById('ci-'+p.id);
+      if(inp)inp.classList.add('ld');
+      const r=await yahooPrice(p.ticker);
+      if(r.ok){
+        p.current=r.price;
+        p.currency=r.currency||p.currency;
+        if(inp){inp.value=fmt(r.price);inp.classList.remove('ld');inp.classList.add('ok');setTimeout(()=>inp.classList.remove('ok'),2000);}
+      } else if(inp) inp.classList.remove('ld');
+    }),
+    ...WTCH.map(async w=>{
+      const [r,fund]=await Promise.all([yahooPrice(w.ticker),yahooFundamentals(w.ticker)]);
+      if(r.ok){w.price=r.price;w.chg=r.chg;w.name=r.name||w.name;
+        w.history=r.history;w.volume=r.volume;w.mktCap=r.mktCap;
+        w.high52=r.high52;w.low52=r.low52;w.currency=r.currency||w.currency;}
+      if(fund) w.fund=fund;
+    })
   ]);
-  save();renderDash();
-  await refreshWatchNews();
-  renderWatch();
+  save();renderDash();renderPos();renderWatch();
   toast('Cours mis à jour ✓','ok');
 }
 
@@ -574,11 +586,24 @@ async function autoFill(){
 }
 
 // ═══ ADD/DELETE ═══════════════════════════════════════
-function addPos(){const t=gv('f-t'),n=gv('f-n'),d=gv('f-d'),p=parseFloat(gv('f-p')),q=parseFloat(gv('f-q')),c=gv('f-c'),m=gv('f-m');
-  if(!t||!d||isNaN(p)||isNaN(q)||p<=0||q<=0){toast('Remplis tous les champs requis','er');return;}
-  POS.push({id:Date.now(),ticker:t.toUpperCase(),name:n||t,date:d,pru:p,qty:q,current:p,currency:c,market:m});
-  save();renderPos();renderDash();['f-t','f-n','f-d','f-p','f-q'].forEach(id=>document.getElementById(id).value='');
-  toast('Position ajoutée ✓','ok');const pos=POS[POS.length-1];yahooPrice(pos.ticker).then(r=>{if(r.ok){pos.current=r.price;save();renderPos();renderDash();}});}
+function addPos(){
+  const t=gv('f-t'),n=gv('f-n'),d=gv('f-d'),p=parseFloat(gv('f-p')),q=parseFloat(gv('f-q')),c=gv('f-c'),m=gv('f-m');
+  if(!t||!d||isNaN(p)||isNaN(q)||p<=0||q<=0){toast('Remplis tous les champs','er');return;}
+  const pos={id:Date.now(),ticker:t.toUpperCase(),name:n||t,date:d,pru:p,qty:q,current:p,currency:c,market:m};
+  POS.push(pos);save();renderPos();renderDash();
+  ['f-t','f-n','f-d','f-p','f-q'].forEach(id=>document.getElementById(id).value='');
+  // Clear pos autocomplete
+  const psel=document.getElementById('pos-selected');if(psel)psel.style.display='none';
+  document.getElementById('pos-search').value='';
+  toast('Achat enregistré — récupération du cours…');
+  yahooPrice(pos.ticker).then(r=>{
+    if(r.ok){
+      pos.current=r.price;pos.currency=r.currency||c;
+      save();renderPos();renderDash();
+      toast(pos.ticker+' : cours récupéré ✓','ok');
+    }
+  });
+}
 function updateCur(id,v){const p=POS.find(x=>x.id===id);if(p){p.current=parseFloat(v)||p.pru;save();renderDash();}}
 function delPos(id){if(!confirm('Supprimer ?'))return;POS=POS.filter(x=>x.id!==id);save();renderPos();renderDash();}
 function addReal(){const t=gv('s-t'),n=gv('s-n'),d=gv('s-d'),pu=parseFloat(gv('s-p')),se=parseFloat(gv('s-s')),q=parseFloat(gv('s-q')),c=gv('s-c');
@@ -866,11 +891,15 @@ function renderNewsletter(articles){
 
 function renderPos(){
   const el=document.getElementById('pos-tbl');
-  if(!POS.length){el.innerHTML='<div class="empty">Aucune position ouverte</div>';return;}
+  if(!POS.length){el.innerHTML='<div class="empty">Aucun achat enregistré.<br><span style="font-size:12px;color:var(--muted);">Utilise le formulaire ci-dessus pour enregistrer ton premier achat.</span></div>';return;}
+  // Show refresh hint if prices match PRU (not yet fetched)
+  const needsRefresh=POS.some(p=>p.current===p.pru);
+  const banner=needsRefresh?`<div style="background:var(--amber2);border:1px solid rgba(196,124,18,.2);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:8px;"><span>⚠️</span><span>Cours pas encore actualisés — clique <strong>↻ Actualiser</strong> en haut pour récupérer les cours en temps réel.</span></div>`:'';
+  el.innerHTML+=banner ? '' : '';
   let h=`<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU</th><th>Qté</th><th>Cours</th><th>Investi</th><th>Valeur act.</th><th>PV/MV lat.</th><th>%</th><th></th></tr></thead><tbody>`;
   POS.forEach(p=>{const s=sym(p.currency),inv=p.pru*p.qty,v=p.current*p.qty,pn=v-inv,pc=(p.current-p.pru)/p.pru*100;
     h+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input id="ci-${p.id}" class="ci" type="number" value="${fmt(p.current)}" onchange="updateCur(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td class="${clr(pn)}">${sgn(pn)}${s}${fmt(Math.abs(pn))}</td><td class="${clr(pc)}">${sgn(pc)}${fmt(Math.abs(pc))}%</td><td><button class="bd" onclick="delPos(${p.id})">✕</button></td></tr>`;});
-  el.innerHTML=h+'</tbody></table>';
+  el.innerHTML+='<div class="tw">'+h+'</tbody></table></div>';
 }
 
 function renderReal(){
@@ -1050,9 +1079,9 @@ function renderDash(){
     <div class="metric"><div class="ml">Capital investi</div><div class="mv">€${fmt(inv)}</div></div>
     <div class="metric"><div class="ml">Valorisation</div><div class="mv">€${fmt(val)}</div></div>
     <div class="metric"><div class="ml">PV/MV latentes</div><div class="mv ${clr(lat)}">${sgn(lat)}€${fmt(Math.abs(lat))}</div><div class="ms ${clr(pctL)}">${sgn(pctL)}${fmt(Math.abs(pctL))}%</div></div>
-    <div class="metric"><div class="ml">PV/MV réalisées</div><div class="mv ${clr(realE)}">${sgn(realE)}€${fmt(Math.abs(realE))}</div></div>
+    <div class="metric"><div class="ml">Mes ventes</div><div class="mv ${clr(realE)}">${sgn(realE)}€${fmt(Math.abs(realE))}</div></div>
     <div class="metric"><div class="ml">P&L total</div><div class="mv ${clr(total)}">${sgn(total)}€${fmt(Math.abs(total))}</div><div class="ms ${clr(pct)}">${sgn(pct)}${fmt(Math.abs(pct))}%</div></div>
-    <div class="metric"><div class="ml">Positions</div><div class="mv">${POS.length}</div><div class="ms neut">${REAL.length} vente(s)</div></div>`;
+    <div class="metric"><div class="ml">Mes achats</div><div class="mv">${POS.length}</div><div class="ms neut">${REAL.length} vente(s)</div></div>`;
 
   const totV=POS.reduce((s,p)=>s+p.current*p.qty*rate(p.currency),0);
   const ab=document.getElementById('alloc-bars');
@@ -1067,7 +1096,7 @@ function renderDash(){
   charts['val']=new Chart(document.getElementById('c-valuation'),{type:'bar',data:{labels:POS.map(p=>p.ticker),datasets:[
     {label:'Investi',data:POS.map(p=>+fmt(p.pru*p.qty*rate(p.currency))),backgroundColor:'rgba(37,99,235,0.12)',borderColor:'#2563eb',borderWidth:1.5,borderRadius:4},
     {label:'Valorisation',data:POS.map(p=>+fmt(p.current*p.qty*rate(p.currency))),backgroundColor:POS.map(p=>p.current>=p.pru?'rgba(18,160,92,0.15)':'rgba(217,59,59,0.12)'),borderColor:POS.map(p=>p.current>=p.pru?'#12a05c':'#d93b3b'),borderWidth:1.5,borderRadius:4}
-  ]},options:{...chartDefaults,plugins:{legend:{display:true,labels:{color:'#8a8a85',boxWidth:10,font:{size:11},borderRadius:3}}}}});
+  ]},options:{...chartDefaults,plugins:{legend:{display:true,labels:{color:'#8a8a85',boxWidth:10,font:{size:11},borderRadius:3}}},scales:{x:{ticks:{color:'#8a8a85',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},y:{ticks:{callback:v=>'€'+v,color:'#8a8a85',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'},suggestedMin:0}}}});
 
   destroyChart('pnl');
   const sr=[...REAL].sort((a,b)=>a.date.localeCompare(b.date));
@@ -1079,7 +1108,7 @@ function renderDash(){
   destroyChart('perf');
   const perfs=POS.map(p=>+fmt((p.current-p.pru)/p.pru*100));
   charts['perf']=new Chart(document.getElementById('c-perf'),{type:'bar',data:{labels:POS.map(p=>p.ticker),datasets:[{data:perfs,backgroundColor:perfs.map(v=>v>=0?'rgba(18,160,92,0.15)':'rgba(217,59,59,0.12)'),borderColor:perfs.map(v=>v>=0?'#12a05c':'#d93b3b'),borderWidth:1.5,borderRadius:4}]},
-  options:{...chartDefaults,indexAxis:'y',scales:{x:{ticks:{callback:v=>v+'%',color:'#8a8a85',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},y:{ticks:{color:'#8a8a85',font:{size:11}},grid:{display:false},border:{color:'transparent'}}}}});
+  options:{...chartDefaults,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw.toFixed(2)+'%'}}},scales:{x:{ticks:{callback:v=>v+'%',color:'#8a8a85',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'},suggestedMin:-5,suggestedMax:5},y:{ticks:{color:'#8a8a85',font:{size:11}},grid:{display:false},border:{color:'transparent'}}}}});
 }
 
 
@@ -1097,8 +1126,12 @@ function pickPosResult(sym,name,exch,type){
 }
 
 renderDash();
-if(POS.length||WTCH.length) setTimeout(refreshAll,600);
-else if(WTCH.length) setTimeout(()=>{refreshWatchNews().then(renderWatch);},600);
+// Auto-refresh all prices on load if data exists
+if(POS.length||WTCH.length){
+  setTimeout(()=>{
+    refreshAll().catch(()=>{});
+  },800);
+}
 </script>
 </body>
 </html>
