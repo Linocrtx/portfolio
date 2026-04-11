@@ -612,21 +612,36 @@ const PROXIES=[
   u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
 ];
 async function PROXY_FETCH(url){
-  for(const p of PROXIES){
+  for(let i=0;i<PROXIES.length;i++){
     try{
-      const r=await fetch(p(url),{signal:AbortSignal.timeout(6000)});
+      const r=await fetch(PROXIES[i](url),{signal:AbortSignal.timeout(7000)});
       if(!r.ok)continue;
       const t=await r.text();
-      if(!t||t.startsWith('<'))continue;
-      return JSON.parse(t);
-    }catch{}
+      if(!t||t.length<10||t.trimStart().startsWith('<'))continue;
+      const parsed=JSON.parse(t);
+      return parsed;
+    }catch(e){}
   }
   return null;
 }
 const PROXY=u=>`https://corsproxy.io/?${encodeURIComponent(u)}`;
 
 function toast(msg,type=''){const el=document.getElementById('toast');el.textContent=msg;el.className='toast on '+type;clearTimeout(el._t);el._t=setTimeout(()=>el.className='toast',2800);}
-function st(id,btn){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));document.getElementById('tab-'+id).classList.add('on');btn.classList.add('on');({dashboard:renderDash,positions:renderPos,realised:renderReal,watchlist:renderWatch})[id]?.();}
+function st(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  const tabEl=document.getElementById('tab-'+id);
+  if(tabEl) tabEl.classList.add('on');
+  if(btn) btn.classList.add('on');
+  const map={
+    dashboard:renderDash,
+    positions:renderPos,
+    realised:renderReal,
+    watchlist:renderWatch,
+    objectifs:renderObjectifs
+  };
+  if(map[id]) map[id]();
+}
 setInterval(()=>{const n=new Date();document.getElementById('hdr-time').textContent=n.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+' · '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});},1000);
 
 // ═══ YAHOO FINANCE ═══════════════════════════════════
@@ -1482,13 +1497,20 @@ function drawSparklines(){
 }
 
 renderDash();
-renderDash();
-if(POS.length||WTCH.length){
-  setTimeout(()=>{refreshAll().catch(()=>{});loadBenchmarks();},500);
-}else if(WTCH.length){
-  setTimeout(()=>{refreshWatchNews().then(renderWatch);},500);
+// Wait for full DOM paint before rendering charts
+window.addEventListener('load', ()=>{
+  renderDash();
+  if(POS.length||WTCH.length){
+    setTimeout(()=>{refreshAll().catch(()=>{});loadBenchmarks();},300);
+  }
+  window.addEventListener('resize',()=>{setTimeout(drawAllCharts,100);});
+});
+
+// Also render immediately for fast connections
+if(document.readyState==='complete'){
+  renderDash();
+  if(POS.length||WTCH.length) setTimeout(()=>{refreshAll().catch(()=>{});},300);
 }
-window.addEventListener('resize',()=>{drawAllCharts();});
 function pickPosResult(sym,name,exch,type){
   document.getElementById('f-t').value=sym;
   document.getElementById('f-n').value=name;
