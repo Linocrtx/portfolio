@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lino · Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0b;
+  --bg2: #111113;
+  --bg3: #18181b;
+  --bg4: #222226;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #f0f0ee;
+  --muted: #888884;
+  --dim: #444442;
+  --green: #22c97a;
+  --green-bg: rgba(34,201,122,0.08);
+  --red: #f05252;
+  --red-bg: rgba(240,82,82,0.08);
+  --amber: #f0a832;
+  --blue: #4fa3f7;
+  --accent: #22c97a;
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* LAYOUT */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,11,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+}
+.header-logo {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+.header-logo span {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+.header-meta { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 16px; }
+.header-meta .refresh-btn {
+  background: none; border: 1px solid var(--border2); color: var(--muted);
+  padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: var(--font-mono);
+  font-size: 11px; transition: all 0.15s;
+}
+.header-meta .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.nav {
+  display: flex; gap: 2px;
+  padding: 0 2rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  overflow-x: auto;
+}
+.nav-btn {
+  background: none; border: none; color: var(--muted);
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap; transition: all 0.15s;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.main { flex: 1; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+/* TABS */
+.tab { display: none; }
+.tab.active { display: block; }
+
+/* METRICS */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.metric {
+  background: var(--bg2);
+  padding: 18px 20px;
+  transition: background 0.15s;
+}
+.metric:hover { background: var(--bg3); }
+.metric-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.metric-val { font-size: 22px; font-weight: 500; color: var(--text); font-family: var(--font-mono); }
+.metric-sub { font-size: 11px; margin-top: 3px; color: var(--muted); }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.neut { color: var(--muted); }
+
+/* SECTION HEADER */
+.sec-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; margin-top: 2rem;
+}
+.sec-title {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* TABLE */
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--bg3);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); font-weight: 500;
+  padding: 10px 14px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+thead th:first-child { text-align: left; }
+tbody td {
+  padding: 11px 14px; text-align: right;
+  border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 13px;
+  transition: background 0.1s;
+}
+tbody td:first-child { text-align: left; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg3); }
+tfoot td {
+  padding: 10px 14px; text-align: right;
+  background: var(--bg3);
+  border-top: 1px solid var(--border2);
+  font-weight: 500; font-size: 13px;
+}
+tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; font-weight: 400; }
+
+.ticker-cell { display: flex; flex-direction: column; }
+.ticker-sym { font-weight: 500; color: var(--text); letter-spacing: 0.04em; }
+.ticker-name { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.cur-input {
+  background: var(--bg4); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 4px 8px; border-radius: 4px; width: 90px; text-align: right;
+  transition: border-color 0.15s;
+}
+.cur-input:focus { outline: none; border-color: var(--accent); }
+.cur-input.loading { color: var(--amber); border-color: rgba(240,168,50,0.3); }
+.cur-input.loaded { color: var(--green); border-color: rgba(34,201,122,0.3); }
+
+.btn-del { background: none; border: none; color: var(--dim); cursor: pointer; padding: 3px 6px; border-radius: 4px; font-size: 13px; transition: all 0.15s; }
+.btn-del:hover { color: var(--red); background: var(--red-bg); }
+
+/* FORM */
+.form-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.fg input, .fg select {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text); font-family: var(--font-mono); font-size: 13px;
+  padding: 8px 10px; border-radius: 5px;
+  transition: border-color 0.15s;
+}
+.fg input:focus, .fg select:focus { outline: none; border-color: var(--accent); }
+.fg select option { background: var(--bg3); }
+.btn-primary {
+  background: var(--accent); color: #000;
+  border: none; border-radius: 5px;
+  padding: 9px 20px; font-family: var(--font-mono); font-size: 12px;
+  font-weight: 500; cursor: pointer; letter-spacing: 0.04em;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-secondary {
+  background: none; border: 1px solid var(--border2); color: var(--muted);
+  border-radius: 5px; padding: 9px 20px;
+  font-family: var(--font-mono); font-size: 12px; cursor: pointer;
+  transition: all 0.15s; margin-left: 8px;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* CHART */
+.chart-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1.2rem; }
+
+/* WATCHLIST */
+.watch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+.watch-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.15s;
+  position: relative;
+}
+.watch-card:hover { border-color: var(--border2); }
+.watch-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.watch-sym { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); }
+.watch-badge {
+  font-size: 10px; padding: 2px 7px; border-radius: 3px;
+  font-weight: 500; letter-spacing: 0.04em;
+}
+.badge-eu { background: rgba(79,163,247,0.12); color: var(--blue); }
+.badge-us { background: rgba(34,201,122,0.1); color: var(--green); }
+.watch-name { font-size: 11px; color: var(--muted); }
+.watch-price-row { display: flex; justify-content: space-between; align-items: baseline; }
+.watch-price { font-size: 20px; font-weight: 500; color: var(--text); }
+.watch-change { font-size: 13px; font-weight: 500; }
+.watch-del { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--dim); cursor: pointer; font-size: 13px; opacity: 0; transition: all 0.15s; }
+.watch-card:hover .watch-del { opacity: 1; }
+.watch-del:hover { color: var(--red); }
+.watch-loading { font-size: 11px; color: var(--amber); margin-top: 2px; }
+
+/* NEWS */
+.news-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 12px;
+}
+.news-item:last-child { border-bottom: none; }
+.news-ticker-badge {
+  font-size: 10px; background: var(--bg4); color: var(--muted);
+  padding: 2px 7px; border-radius: 3px; height: fit-content;
+  white-space: nowrap; letter-spacing: 0.04em; margin-top: 2px;
+}
+.news-content { flex: 1; }
+.news-title { font-size: 13px; color: var(--text); line-height: 1.5; }
+.news-meta { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+/* ALLOC BARS */
+.alloc-bar-list { display: flex; flex-direction: column; gap: 10px; }
+.alloc-item { display: flex; align-items: center; gap: 12px; }
+.alloc-ticker { width: 70px; font-size: 12px; font-weight: 500; color: var(--muted); flex-shrink: 0; }
+.alloc-bar-wrap { flex: 1; background: var(--bg4); border-radius: 2px; height: 6px; overflow: hidden; }
+.alloc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.alloc-pct { width: 40px; text-align: right; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.alloc-val { width: 90px; text-align: right; font-size: 12px; color: var(--text); flex-shrink: 0; }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 3rem 1rem; color: var(--dim); font-size: 13px; }
+.empty .empty-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.3; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text); padding: 10px 18px; border-radius: 6px;
+  font-size: 12px; opacity: 0; transform: translateY(8px);
+  transition: all 0.2s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: rgba(34,201,122,0.4); color: var(--green); }
+.toast.error { border-color: rgba(240,82,82,0.4); color: var(--red); }
+
+/* PNLCHART */
+#pnl-canvas { background: transparent; }
+
+/* BADGE REALISED */
+.pnl-badge {
+  display: inline-block; font-size: 11px; font-weight: 500;
+  padding: 3px 9px; border-radius: 4px;
+}
+.pnl-pos { background: var(--green-bg); color: var(--green); }
+.pnl-neg { background: var(--red-bg); color: var(--red); }
+
+/* RESPONSIVE */
+@media(max-width:640px) {
+  .main { padding: 1rem; }
+  .header { padding: 0 1rem; }
+  .nav { padding: 0 1rem; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<header class="header">
+  <div class="header-logo">
+    <span></span>
+    Lino · Portfolio
+  </div>
+  <div class="header-meta">
+    <span id="last-update">—</span>
+    <button class="refresh-btn" onclick="refreshAllPrices()">↻ Actualiser</button>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showTab('dashboard',this)">Dashboard</button>
+  <button class="nav-btn" onclick="showTab('positions',this)">Positions</button>
+  <button class="nav-btn" onclick="showTab('realised',this)">PV/MV réalisées</button>
+  <button class="nav-btn" onclick="showTab('watchlist',this)">Watchlist</button>
+</nav>
+
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="tab active" id="tab-dashboard">
+    <div class="metrics-grid" id="metrics-grid"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+      <div class="chart-wrap">
+        <div class="chart-title">Répartition du portefeuille</div>
+        <div class="alloc-bar-list" id="alloc-bars"></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">PV/MV réalisées cumulées</div>
+        <div style="position:relative;height:200px;"><canvas id="pnl-canvas" role="img" aria-label="Évolution des PV/MV réalisées cumulées"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- POSITIONS -->
+  <div class="tab" id="tab-positions">
+    <div class="form-panel">
+      <div class="sec-title" style="margin-bottom:1rem;">Ajouter une position</div>
+      <div class="form-grid">
+        <div class="fg"><label>Ticker Yahoo</label><input id="f-ticker" placeholder="ex: MC.PA, AAPL"></div>
+        <div class="fg"><label>Nom</label><input id="f-name" placeholder="ex: LVMH"></div>
+        <div class="fg"><label>Date d'achat</label><input id="f-date" type="date"></div>
+        <div class="fg"><label>PRU</label><input id="f-pru" type="number" placeholder="0.00" step="0.01"></div>
+        <div class="fg"><label>Quantité</label><input id="f-qty" type="number" placeholder="0" step="1"></div>
+        <div class="fg"><label>Devise</label>
+          <select id="f-currency"><option value="EUR">EUR €</option><option value="USD">USD $</option></select>
+        </div>
+        <div class="fg"><label>Marché</label>
+          <select id="f-market"><option value="EU">Europe / France</option><option value="US">USA</option></select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addPosition()">+ Ajouter</button>
+      <button class="btn-secondary" onclick="fetchAndFill()">↗ Remplir depuis Yahoo</button>
+    </div>
+    <div class="sec-header"><span class="sec-title">Positions ouvertes</span></div>
+    <div class="tbl-wrap" id="positions-table"></div>
+  </div>
+
+  <!-- REALISED -->
+  <div class="tab" id="tab-realised">
+    <div class="form-panel">
+      <div class="sec-title" style="margin-bottom:1rem;">Enregistrer une vente</div>
+      <div class="form-grid">
+        <div class="fg"><label>Ticker</label><input id="s-ticker" placeholder="ex: MC.PA"></div>
+        <div class="fg"><label>Nom</label><input id="s-name" placeholder="ex: LVMH"></div>
+        <div class="fg"><label>Date de vente</label><input id="s-date" type="date"></div>
+        <div class="fg"><label>PRU d'achat</label><input id="s-pru" type="number" placeholder="0.00" step="0.01"></div>
+        <div class="fg"><label>Prix de vente</label><input id="s-sell" type="number" placeholder="0.00" step="0.01"></div>
+        <div class="fg"><label>Quantité vendue</label><input id="s-qty" type="number" placeholder="0"></div>
+        <div class="fg"><label>Devise</label>
+          <select id="s-currency"><option value="EUR">EUR €</option><option value="USD">USD $</option></select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addRealised()">+ Enregistrer la vente</button>
+    </div>
+    <div class="sec-header"><span class="sec-title">Historique des ventes</span></div>
+    <div class="tbl-wrap" id="realised-table"></div>
+  </div>
+
+  <!-- WATCHLIST -->
+  <div class="tab" id="tab-watchlist">
+    <div class="form-panel">
+      <div class="sec-title" style="margin-bottom:1rem;">Ajouter une valeur à surveiller</div>
+      <div class="form-grid">
+        <div class="fg"><label>Ticker Yahoo Finance</label><input id="w-ticker" placeholder="ex: AIR.PA, TSLA"></div>
+        <div class="fg"><label>Nom</label><input id="w-name" placeholder="ex: Airbus"></div>
+        <div class="fg"><label>Marché</label>
+          <select id="w-market"><option value="EU">Europe</option><option value="US">USA</option></select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addWatch()">+ Surveiller</button>
+    </div>
+    <div class="sec-header"><span class="sec-title">Valeurs suivies</span></div>
+    <div class="watch-grid" id="watch-grid"></div>
+    <div class="sec-header"><span class="sec-title">Actualités</span></div>
+    <div class="form-panel" style="margin-bottom:1rem;">
+      <div class="form-grid">
+        <div class="fg"><label>Ticker</label><input id="n-ticker" placeholder="ex: AAPL"></div>
+        <div class="fg"><label>Source</label><input id="n-source" placeholder="ex: Les Échos"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Titre</label><input id="n-title" placeholder="Titre de l'article..."></div>
+        <div class="fg"><label>Date</label><input id="n-date" type="date"></div>
+      </div>
+      <button class="btn-primary" onclick="addNews()">+ Ajouter la news</button>
+    </div>
+    <div id="news-list"></div>
+  </div>
+
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── STATE ────────────────────────────────────────────────
+let positions = JSON.parse(localStorage.getItem('lino_pos') || '[]');
+let realiseds  = JSON.parse(localStorage.getItem('lino_real') || '[]');
+let watchlist  = JSON.parse(localStorage.getItem('lino_watch') || '[]');
+let newsList   = JSON.parse(localStorage.getItem('lino_news') || '[]');
+let pnlChartInst = null;
+const COLORS = ['#22c97a','#4fa3f7','#f0a832','#f05252','#a78bfa','#34d399','#fb923c','#e879f9'];
+
+function save() {
+  localStorage.setItem('lino_pos',  JSON.stringify(positions));
+  localStorage.setItem('lino_real', JSON.stringify(realiseds));
+  localStorage.setItem('lino_watch',JSON.stringify(watchlist));
+  localStorage.setItem('lino_news', JSON.stringify(newsList));
+}
+
+// ── YAHOO FINANCE PROXY ──────────────────────────────────
+// Uses a free CORS proxy to query Yahoo Finance v8 API
+async function fetchYahooPrice(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+  const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  try {
+    const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const q = data?.chart?.result?.[0]?.meta;
+    if (!q) throw new Error('No data');
+    const price     = q.regularMarketPrice;
+    const prevClose = q.chartPreviousClose || q.previousClose;
+    const change    = prevClose ? ((price - prevClose) / prevClose * 100) : null;
+    const currency  = q.currency || 'EUR';
+    const name      = q.longName || q.shortName || ticker;
+    return { price, change, currency, name, ok: true };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ── REFRESH ALL PRICES ───────────────────────────────────
+async function refreshAllPrices() {
+  showToast('Actualisation en cours…', 'info');
+  const promises = positions.map(async p => {
+    const inp = document.getElementById('cur-' + p.id);
+    if (inp) inp.classList.add('loading');
+    const r = await fetchYahooPrice(p.ticker);
+    if (r.ok) {
+      p.current = r.price;
+      if (inp) { inp.value = r.price.toFixed(2); inp.classList.remove('loading'); inp.classList.add('loaded'); setTimeout(()=>inp.classList.remove('loaded'),2000); }
+    } else {
+      if (inp) inp.classList.remove('loading');
+    }
+  });
+  const wPromises = watchlist.map(async w => {
+    const r = await fetchYahooPrice(w.ticker);
+    if (r.ok) { w.price = r.price; w.change = r.change; w.name = r.name || w.name; }
+  });
+  await Promise.all([...promises, ...wPromises]);
+  save();
+  renderDashboard();
+  renderWatchlist();
+  document.getElementById('last-update').textContent = 'Mis à jour ' + new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+  showToast('Cours mis à jour', 'success');
+}
+
+// ── AUTO-FILL FROM YAHOO ─────────────────────────────────
+async function fetchAndFill() {
+  const ticker = gv('f-ticker');
+  if (!ticker) { showToast('Saisis un ticker d\'abord', 'error'); return; }
+  showToast('Recherche de ' + ticker + '…', 'info');
+  const r = await fetchYahooPrice(ticker);
+  if (r.ok) {
+    document.getElementById('f-name').value = r.name;
+    document.getElementById('f-pru').value = r.price.toFixed(2);
+    if (r.currency === 'USD') document.getElementById('f-currency').value = 'USD';
+    showToast('Données récupérées ✓', 'success');
+  } else {
+    showToast('Ticker introuvable sur Yahoo Finance', 'error');
+  }
+}
+
+// ── HELPERS ──────────────────────────────────────────────
+function gv(id) { return document.getElementById(id)?.value?.trim() || ''; }
+function fmt(n, d=2) { return parseFloat(n).toFixed(d); }
+function sym(cur) { return cur === 'USD' ? '$' : '€'; }
+function rate(cur) { return cur === 'USD' ? 0.92 : 1; }
+function clr(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : 'neut'; }
+function sgn(n) { return n >= 0 ? '+' : ''; }
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast', 2800);
+}
+function showTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'positions') renderPositions();
+  if (id === 'realised')  renderRealised();
+  if (id === 'watchlist') renderWatchlist();
+}
+
+// ── ADD POSITION ─────────────────────────────────────────
+function addPosition() {
+  const t=gv('f-ticker'), n=gv('f-name'), d=gv('f-date'),
+        p=parseFloat(gv('f-pru')), q=parseFloat(gv('f-qty')),
+        cur=gv('f-currency'), mkt=gv('f-market');
+  if (!t||!d||isNaN(p)||isNaN(q)||p<=0||q<=0) { showToast('Remplis tous les champs requis','error'); return; }
+  positions.push({ id: Date.now(), ticker: t.toUpperCase(), name: n||t, date: d, pru: p, qty: q, current: p, currency: cur, market: mkt });
+  save(); renderPositions(); renderDashboard();
+  ['f-ticker','f-name','f-date','f-pru','f-qty'].forEach(id => document.getElementById(id).value = '');
+  showToast('Position ajoutée ✓', 'success');
+  // auto-fetch price
+  const pos = positions[positions.length-1];
+  fetchYahooPrice(pos.ticker).then(r => { if(r.ok){ pos.current = r.price; save(); renderPositions(); renderDashboard(); } });
+}
+
+function updateCurrent(id, val) {
+  const p = positions.find(x => x.id === id);
+  if (p) { p.current = parseFloat(val) || p.pru; save(); renderDashboard(); }
+}
+function deletePos(id) {
+  if (!confirm('Supprimer cette position ?')) return;
+  positions = positions.filter(x => x.id !== id);
+  save(); renderPositions(); renderDashboard();
+}
+
+// ── ADD REALISED ─────────────────────────────────────────
+function addRealised() {
+  const t=gv('s-ticker'), n=gv('s-name'), d=gv('s-date'),
+        pru=parseFloat(gv('s-pru')), sell=parseFloat(gv('s-sell')),
+        q=parseFloat(gv('s-qty')), cur=gv('s-currency');
+  if (!t||!d||isNaN(pru)||isNaN(sell)||isNaN(q)||q<=0) { showToast('Remplis tous les champs requis','error'); return; }
+  realiseds.push({ id: Date.now(), ticker: t.toUpperCase(), name: n||t, date: d, pru, sell, qty: q, pnl: (sell-pru)*q, currency: cur });
+  save(); renderRealised(); renderDashboard();
+  ['s-ticker','s-name','s-pru','s-sell','s-qty'].forEach(id => document.getElementById(id).value = '');
+  showToast('Vente enregistrée ✓', 'success');
+}
+function deleteReal(id) {
+  if (!confirm('Supprimer cette vente ?')) return;
+  realiseds = realiseds.filter(x => x.id !== id);
+  save(); renderRealised(); renderDashboard();
+}
+
+// ── ADD WATCH ────────────────────────────────────────────
+async function addWatch() {
+  const t = gv('w-ticker'), n = gv('w-name'), mkt = gv('w-market');
+  if (!t) { showToast('Saisis un ticker','error'); return; }
+  const entry = { id: Date.now(), ticker: t.toUpperCase(), name: n||t, price: 0, change: null, market: mkt };
+  watchlist.push(entry);
+  save(); renderWatchlist();
+  ['w-ticker','w-name'].forEach(id => document.getElementById(id).value = '');
+  showToast('Récupération du cours…','info');
+  const r = await fetchYahooPrice(entry.ticker);
+  if (r.ok) { entry.price = r.price; entry.change = r.change; entry.name = r.name || entry.name; save(); renderWatchlist(); showToast('Valeur ajoutée ✓','success'); }
+  else { showToast('Ticker non trouvé sur Yahoo','error'); }
+}
+function deleteWatch(id) {
+  watchlist = watchlist.filter(x => x.id !== id);
+  save(); renderWatchlist();
+}
+
+// ── ADD NEWS ─────────────────────────────────────────────
+function addNews() {
+  const t=gv('n-ticker'), s=gv('n-source'), ti=gv('n-title'), d=gv('n-date');
+  if (!ti) { showToast('Ajoute un titre de news','error'); return; }
+  newsList.unshift({ id: Date.now(), ticker: t.toUpperCase(), source: s, title: ti, date: d });
+  save(); renderWatchlist();
+  ['n-ticker','n-source','n-title','n-date'].forEach(id => document.getElementById(id).value = '');
+  showToast('News ajoutée ✓','success');
+}
+
+// ── RENDER DASHBOARD ─────────────────────────────────────
+function renderDashboard() {
+  let investEUR=0, valEUR=0, latEUR=0;
+  positions.forEach(p => {
+    const r = rate(p.currency);
+    investEUR += p.pru * p.qty * r;
+    valEUR    += p.current * p.qty * r;
+    latEUR    += (p.current - p.pru) * p.qty * r;
+  });
+  const realEUR = realiseds.reduce((s,r) => s + r.pnl * rate(r.currency), 0);
+  const totalPnl = latEUR + realEUR;
+  const pct = investEUR > 0 ? (totalPnl / investEUR * 100) : 0;
+  const pctLat = investEUR > 0 ? (latEUR / investEUR * 100) : 0;
+
+  document.getElementById('metrics-grid').innerHTML = `
+    <div class="metric"><div class="metric-label">Capital investi</div><div class="metric-val">€${fmt(investEUR)}</div></div>
+    <div class="metric"><div class="metric-label">Valorisation</div><div class="metric-val">€${fmt(valEUR)}</div></div>
+    <div class="metric"><div class="metric-label">PV/MV latentes</div><div class="metric-val ${clr(latEUR)}">${sgn(latEUR)}€${fmt(Math.abs(latEUR))}</div><div class="metric-sub ${clr(pctLat)}">${sgn(pctLat)}${fmt(Math.abs(pctLat))}%</div></div>
+    <div class="metric"><div class="metric-label">PV/MV réalisées</div><div class="metric-val ${clr(realEUR)}">${sgn(realEUR)}€${fmt(Math.abs(realEUR))}</div></div>
+    <div class="metric"><div class="metric-label">P&L total</div><div class="metric-val ${clr(totalPnl)}">${sgn(totalPnl)}€${fmt(Math.abs(totalPnl))}</div><div class="metric-sub ${clr(pct)}">${sgn(pct)}${fmt(Math.abs(pct))}%</div></div>
+    <div class="metric"><div class="metric-label">Positions</div><div class="metric-val">${positions.length}</div><div class="metric-sub neut">${realiseds.length} vente(s)</div></div>
+  `;
+
+  // Alloc bars
+  const totalVal = positions.reduce((s,p) => s + p.current*p.qty*rate(p.currency), 0);
+  const allocEl = document.getElementById('alloc-bars');
+  if (!positions.length) { allocEl.innerHTML = '<div class="empty" style="padding:1.5rem 0">Aucune position</div>'; }
+  else {
+    const sorted = [...positions].sort((a,b) => (b.current*b.qty*rate(b.currency)) - (a.current*a.qty*rate(a.currency)));
+    allocEl.innerHTML = sorted.map((p,i) => {
+      const v = p.current*p.qty*rate(p.currency);
+      const pctA = totalVal > 0 ? (v/totalVal*100) : 0;
+      return `<div class="alloc-item">
+        <div class="alloc-ticker">${p.ticker}</div>
+        <div class="alloc-bar-wrap"><div class="alloc-bar-fill" style="width:${pctA.toFixed(1)}%;background:${COLORS[i%COLORS.length]}"></div></div>
+        <div class="alloc-pct">${pctA.toFixed(0)}%</div>
+        <div class="alloc-val">${sym(p.currency)}${fmt(v)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // PnL chart
+  const sorted = [...realiseds].sort((a,b) => a.date.localeCompare(b.date));
+  const labels = sorted.map(r => r.date);
+  let cum = 0;
+  const data = sorted.map(r => { cum += r.pnl*rate(r.currency); return parseFloat(fmt(cum)); });
+  if (pnlChartInst) pnlChartInst.destroy();
+  const canvas = document.getElementById('pnl-canvas');
+  if (labels.length > 0) {
+    pnlChartInst = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets: [{ data, borderColor: '#22c97a', backgroundColor: 'rgba(34,201,122,0.07)', fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: '#22c97a', borderWidth: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { ticks: { callback: v => '€'+v, color: '#888884', font:{size:11} }, grid: { color: 'rgba(255,255,255,0.05)' }, border:{color:'transparent'} },
+          x: { ticks: { color: '#888884', font:{size:10}, maxRotation:30 }, grid: { display: false }, border:{color:'transparent'} }
+        }
+      }
+    });
+  } else {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#444442'; ctx.font='12px DM Mono,monospace';
+    ctx.fillText('Aucune vente enregistrée', 20, 80);
+  }
+}
+
+// ── RENDER POSITIONS ─────────────────────────────────────
+function renderPositions() {
+  const el = document.getElementById('positions-table');
+  if (!positions.length) { el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>Aucune position ouverte</div>'; return; }
+  let html = `<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU</th><th>Qté</th><th>Cours actuel</th><th>Investi</th><th>Valorisation</th><th>PV/MV lat.</th><th>%</th><th></th></tr></thead><tbody>`;
+  positions.forEach(p => {
+    const s = sym(p.currency);
+    const inv = p.pru*p.qty, val = p.current*p.qty;
+    const pnl = val-inv, pct = ((p.current-p.pru)/p.pru)*100;
+    html += `<tr>
+      <td><div class="ticker-cell"><span class="ticker-sym">${p.ticker}</span><span class="ticker-name">${p.name}</span></div></td>
+      <td>${p.date}</td>
+      <td>${s}${fmt(p.pru)}</td>
+      <td>${p.qty}</td>
+      <td><input id="cur-${p.id}" class="cur-input" type="number" value="${fmt(p.current)}" onchange="updateCurrent(${p.id},this.value)" onblur="updateCurrent(${p.id},this.value)"></td>
+      <td>${s}${fmt(inv)}</td>
+      <td>${s}${fmt(val)}</td>
+      <td class="${clr(pnl)}">${sgn(pnl)}${s}${fmt(Math.abs(pnl))}</td>
+      <td class="${clr(pct)}">${sgn(pct)}${fmt(Math.abs(pct))}%</td>
+      <td><button class="btn-del" onclick="deletePos(${p.id})">✕</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── RENDER REALISED ──────────────────────────────────────
+function renderRealised() {
+  const el = document.getElementById('realised-table');
+  if (!realiseds.length) { el.innerHTML='<div class="empty"><div class="empty-icon">📊</div>Aucune vente enregistrée</div>'; return; }
+  let totalEUR = 0;
+  let html = `<table><thead><tr><th>Valeur</th><th>Date vente</th><th>PRU achat</th><th>Prix vente</th><th>Qté</th><th>PV/MV réalisée</th><th></th></tr></thead><tbody>`;
+  realiseds.forEach(r => {
+    const s = sym(r.currency);
+    totalEUR += r.pnl * rate(r.currency);
+    const badge = r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    html += `<tr>
+      <td><div class="ticker-cell"><span class="ticker-sym">${r.ticker}</span><span class="ticker-name">${r.name||''}</span></div></td>
+      <td>${r.date}</td>
+      <td>${s}${fmt(r.pru)}</td>
+      <td>${s}${fmt(r.sell)}</td>
+      <td>${r.qty}</td>
+      <td><span class="pnl-badge ${badge}">${sgn(r.pnl)}${s}${fmt(Math.abs(r.pnl))}</span></td>
+      <td><button class="btn-del" onclick="deleteReal(${r.id})">✕</button></td>
+    </tr>`;
+  });
+  const tc = clr(totalEUR);
+  html += `</tbody><tfoot><tr><td>Total PV/MV réalisées (€)</td><td colspan="4"></td><td class="${tc}" style="text-align:right">${sgn(totalEUR)}€${fmt(Math.abs(totalEUR))}</td><td></td></tr></tfoot></table>`;
+  el.innerHTML = html;
+}
+
+// ── RENDER WATCHLIST ─────────────────────────────────────
+function renderWatchlist() {
+  const gr = document.getElementById('watch-grid');
+  if (!watchlist.length) { gr.innerHTML='<div class="empty" style="grid-column:1/-1">Aucune valeur suivie</div>'; }
+  else {
+    gr.innerHTML = watchlist.map(w => {
+      const ch = w.change;
+      const chStr = ch !== null ? `${sgn(ch)}${fmt(Math.abs(ch))}%` : '—';
+      const chCls = ch !== null ? clr(ch) : 'neut';
+      const priceStr = w.price > 0 ? fmt(w.price) : '—';
+      const badge = w.market === 'US' ? 'badge-us' : 'badge-eu';
+      const badgeTxt = w.market === 'US' ? 'US' : 'EU';
+      return `<div class="watch-card">
+        <button class="watch-del" onclick="deleteWatch(${w.id})">✕</button>
+        <div class="watch-card-top">
+          <span class="watch-sym">${w.ticker}</span>
+          <span class="watch-badge ${badge}">${badgeTxt}</span>
+        </div>
+        <div class="watch-name">${w.name}</div>
+        <div class="watch-price-row">
+          <span class="watch-price">${priceStr}</span>
+          <span class="watch-change ${chCls}">${chStr}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const nl = document.getElementById('news-list');
+  if (!newsList.length) { nl.innerHTML='<div class="empty">Aucune actualité enregistrée</div>'; }
+  else {
+    nl.innerHTML = `<div style="border:1px solid var(--border);border-radius:8px;padding:0 1.2rem;">` +
+      newsList.map(n => `
+        <div class="news-item">
+          ${n.ticker ? `<span class="news-ticker-badge">${n.ticker}</span>` : ''}
+          <div class="news-content">
+            <div class="news-title">${n.title}</div>
+            <div class="news-meta">${n.source||''}${n.source&&n.date?' · ':''}${n.date||''}</div>
+          </div>
+        </div>`).join('') + '</div>';
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────
+renderDashboard();
+// Auto-refresh prices on load
+if (positions.length || watchlist.length) {
+  setTimeout(refreshAllPrices, 800);
+}
+</script>
+</body>
+</html>
