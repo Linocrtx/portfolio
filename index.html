@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -336,8 +337,8 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
 .dash-stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;}
 .dash-stat-val{font-family:var(--font-d);font-size:17px;font-weight:700;}
 .dash-stat-sub{font-size:11px;margin-top:2px;}
-.dash-chart-wrap{background:white;border:1px solid var(--border);border-radius:var(--r2);padding:1.25rem 1.5rem;margin-bottom:1.75rem;box-shadow:var(--shadow);height:180px;position:relative;}
-.dash-chart-wrap canvas{width:calc(100% - 3rem)!important;height:140px!important;position:absolute;bottom:1.25rem;}
+.dash-chart-wrap{background:white;border:1px solid var(--border);border-radius:var(--r2);padding:1rem 1.25rem;margin-bottom:1.75rem;box-shadow:var(--shadow);height:220px;position:relative;}
+.dash-chart-wrap canvas{display:block;}
 .dash-sec{font-family:var(--font-d);font-size:15px;font-weight:700;color:var(--text);margin-bottom:1rem;letter-spacing:-.02em;}
 .pos-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:1.75rem;}
 .pos-card{background:white;border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px;box-shadow:var(--shadow);transition:all .15s;display:flex;flex-direction:column;gap:8px;}
@@ -452,7 +453,7 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
   </div>
 
   <!-- Grande courbe -->
-  <div class="dash-chart-wrap" style="height:220px;">
+  <div class="dash-chart-wrap" style="height:220px;position:relative;"><div style="position:absolute;inset:1rem;height:calc(220px - 2rem);" id="patrimoine-wrap">
     <canvas id="c-patrimoine" role="img" aria-label="Évolution du patrimoine"></canvas>
   </div>
 
@@ -464,10 +465,10 @@ tfoot td:first-child { text-align: left; color: var(--muted); font-size: 11px; f
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;margin-bottom:1.5rem;">
     <div class="cbox"><div class="cbox-title">Répartition</div><div id="alloc-bars"></div></div>
     <div class="cbox"><div class="cbox-title">Secteurs</div>
-      <div class="sector-chart-wrap"><canvas id="c-sector" role="img" aria-label="Répartition sectorielle"></canvas></div>
+      <div class="sector-chart-wrap" style="height:160px;position:relative;"><canvas id="c-sector" style="position:absolute;top:0;left:0;width:100%;height:100%;" role="img" aria-label="Répartition sectorielle"></canvas></div>
       <div class="sector-legend" id="sector-legend"></div>
     </div>
-    <div class="cbox"><div class="cbox-title">PV/MV réalisées</div><div class="chart-h"><canvas id="c-pnl" role="img" aria-label="PV/MV réalisées"></canvas></div></div>
+    <div class="cbox"><div class="cbox-title">PV/MV réalisées</div><div class="chart-h" style="position:relative;height:160px;"><canvas id="c-pnl" role="img" aria-label="PV/MV réalisées"></canvas></div></div>
   </div>
 
 </div>
@@ -1278,10 +1279,13 @@ function renderDash(){
         borderDash:[4,4],tension:0.4,pointRadius:0,borderWidth:1.5});
     }
 
+    // Set explicit canvas size before creating chart
+    const pw=cpat.parentElement;
+    if(pw){cpat.width=pw.offsetWidth||800;cpat.height=pw.offsetHeight||180;}
     charts['patrimoine']=new Chart(cpat,{type:'line',
       data:{labels,datasets},
       options:{
-        responsive:false,animation:false,
+        responsive:true,maintainAspectRatio:false,animation:{duration:300},
         plugins:{legend:{display:false},
           tooltip:{mode:'index',intersect:false,callbacks:{label:c=>' '+c.dataset.label+': €'+fmt(c.raw)}}},
         scales:{x:{display:false},y:{ticks:{callback:v=>'€'+Math.round(v),color:'#8a8a85',font:{size:11}},
@@ -1290,9 +1294,26 @@ function renderDash(){
       }
     });
   } else if(cpat){
-    const ctx=cpat.getContext('2d');ctx.clearRect(0,0,9999,9999);
-    ctx.fillStyle='#b8b8b3';ctx.font='13px Inter,sans-serif';
-    ctx.fillText('Ajoutez des achats pour voir la courbe',30,80);
+    // No history yet - show placeholder with current values
+    if(POS.length){
+      const pw=cpat.parentElement;
+      if(pw){cpat.width=pw.offsetWidth||800;cpat.height=pw.offsetHeight||180;}
+      const simData=POS.map(p=>p.current*p.qty*rate(p.currency)).reduce((a,b)=>a+b,0);
+      charts['patrimoine']=new Chart(cpat,{type:'line',
+        data:{labels:['Achat','Aujourd\u2019hui'],
+          datasets:[{data:[inv,simData],borderColor:'#12a05c',backgroundColor:'rgba(18,160,92,0.07)',
+            fill:true,tension:0.4,pointRadius:4,borderWidth:2}]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false}},
+          scales:{x:{ticks:{color:'#8a8a85',font:{size:11}}},
+                  y:{ticks:{callback:v=>'€'+Math.round(v),color:'#8a8a85',font:{size:11}},
+                    grid:{color:'rgba(0,0,0,0.03)'},border:{display:false}}}}
+      });
+    } else {
+      const ctx=cpat.getContext('2d');ctx.clearRect(0,0,9999,9999);
+      ctx.fillStyle='#b8b8b3';ctx.font='13px Inter,sans-serif';
+      ctx.fillText('Ajoutez des achats pour voir la courbe',30,80);
+    }
   }
 
   // Position cards
@@ -1357,9 +1378,17 @@ function renderDash(){
   if(ab){
     if(!POS.length){ab.innerHTML='<div style="color:var(--dim);font-size:12px;padding:1rem 0;">Aucune position</div>';}
     else{
-      const sp=[...POS].sort((a,b)=>b.current*b.qty*rate(b.currency)-a.current*a.qty*rate(a.currency));
-      ab.innerHTML=sp.map((p,i)=>{const v2=p.current*p.qty*rate(p.currency),pc=totV>0?v2/totV*100:0;
-        return`<div class="alloc-row"><div class="alloc-tick">${p.ticker}</div><div class="alloc-bar"><div class="alloc-fill" style="width:${pc.toFixed(1)}%;background:${COLORS_LIGHT[i%COLORS_LIGHT.length]}"></div></div><div class="alloc-pct">${pc.toFixed(0)}%</div><div class="alloc-val">${sym(p.currency)}${fmt(v2)}</div></div>`;
+      // Use PRU-based value if current not yet fetched
+      const sp=[...POS].sort((a,b)=>{
+        const va=b.current*b.qty*rate(b.currency);
+        const vb=a.current*a.qty*rate(a.currency);
+        return va-vb;
+      });
+      const totalForAlloc=sp.reduce((s,p)=>s+Math.max(p.current,p.pru)*p.qty*rate(p.currency),0)||1;
+      ab.innerHTML=sp.map((p,i)=>{
+        const v2=Math.max(p.current,p.pru)*p.qty*rate(p.currency);
+        const pc=totalForAlloc>0?v2/totalForAlloc*100:0;
+        return`<div class="alloc-row"><div class="alloc-tick">${p.ticker}</div><div class="alloc-bar"><div class="alloc-fill" style="width:${Math.max(pc,2).toFixed(1)}%;background:${COLORS_LIGHT[i%COLORS_LIGHT.length]}"></div></div><div class="alloc-pct">${pc.toFixed(0)}%</div><div class="alloc-val">${sym(p.currency)}${fmt(v2)}</div></div>`;
       }).join('');
     }
   }
@@ -1378,9 +1407,10 @@ function renderDash(){
     });
     const labels=Object.keys(sectors);
     const data=Object.values(sectors);
+    if(csec.parentElement){csec.width=csec.parentElement.offsetWidth||200;csec.height=160;}
     charts['sector']=new Chart(csec,{type:'doughnut',
       data:{labels,datasets:[{data,backgroundColor:SECTOR_COLORS.slice(0,labels.length),borderWidth:2,borderColor:'white'}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
         plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': €'+Math.round(c.raw)}}}}
     });
     if(sleg) sleg.innerHTML=labels.map((l,i)=>`<div class="sector-leg-item"><div class="sector-leg-dot" style="background:${SECTOR_COLORS[i]};"></div><span>${l}</span><span style="margin-left:auto;font-weight:500;">€${Math.round(sectors[l])}</span></div>`).join('');
@@ -1404,11 +1434,30 @@ function renderDash(){
 }
 
 renderDash();
+// Initial render
+renderDash();
+
+// Redraw charts after fonts/layout settle
+setTimeout(()=>{
+  if(typeof Chart!=='undefined'){
+    Object.values(charts).forEach(c=>{try{c.resize();}catch{}});
+  }
+},300);
+
+// Load data
 if(POS.length||WTCH.length){
-  setTimeout(()=>{refreshAll().catch(()=>{});loadBenchmarks();},800);
+  setTimeout(()=>{
+    refreshAll().catch(()=>{});
+    loadBenchmarks();
+  },600);
 } else if(WTCH.length){
   setTimeout(()=>{refreshWatchNews().then(renderWatch);},600);
 }
+
+// Redraw after data loads
+window.addEventListener('resize',()=>{
+  Object.values(charts).forEach(c=>{try{c.resize();}catch{}});
+});
 function pickPosResult(sym,name,exch,type){
   document.getElementById('f-t').value=sym;
   document.getElementById('f-n').value=name;
