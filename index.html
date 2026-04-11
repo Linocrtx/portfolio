@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -589,28 +590,119 @@ function delReal(id){if(!confirm('Supprimer ?'))return;REAL=REAL.filter(x=>x.id!
 // === AUTOCOMPLETE UNIVERSEL ===
 let acSelected=null, acDebounce=null;
 
+// ── BASE DE DONNÉES LOCALE (toujours dispo, 0 API) ──
+const STOCKS_DB=[
+  ['AI.PA','Air Liquide','EU','EQUITY'],['AIR.PA','Airbus','EU','EQUITY'],
+  ['BN.PA','Danone','EU','EQUITY'],['BNP.PA','BNP Paribas','EU','EQUITY'],
+  ['CAP.PA','Capgemini','EU','EQUITY'],['CS.PA','AXA','EU','EQUITY'],
+  ['DG.PA','Vinci','EU','EQUITY'],['EN.PA','Bouygues','EU','EQUITY'],
+  ['ENGI.PA','Engie','EU','EQUITY'],['GLE.PA','Société Générale','EU','EQUITY'],
+  ['HO.PA','Thales','EU','EQUITY'],['KER.PA','Kering','EU','EQUITY'],
+  ['LR.PA','Legrand','EU','EQUITY'],['MC.PA','LVMH','EU','EQUITY'],
+  ['ML.PA','Michelin','EU','EQUITY'],['OR.PA','L\'Oreal','EU','EQUITY'],
+  ['ORA.PA','Orange','EU','EQUITY'],['PUB.PA','Publicis','EU','EQUITY'],
+  ['RI.PA','Pernod Ricard','EU','EQUITY'],['RMS.PA','Hermes','EU','EQUITY'],
+  ['RNO.PA','Renault','EU','EQUITY'],['SAF.PA','Safran','EU','EQUITY'],
+  ['SAN.PA','Sanofi','EU','EQUITY'],['SGO.PA','Saint-Gobain','EU','EQUITY'],
+  ['STM.PA','STMicroelectronics','EU','EQUITY'],['SU.PA','Schneider Electric','EU','EQUITY'],
+  ['TEP.PA','Teleperformance','EU','EQUITY'],['TTE.PA','TotalEnergies','EU','EQUITY'],
+  ['VIE.PA','Veolia','EU','EQUITY'],['VIV.PA','Vivendi','EU','EQUITY'],
+  ['DSY.PA','Dassault Systemes','EU','EQUITY'],['EL.PA','EssilorLuxottica','EU','EQUITY'],
+  ['ERF.PA','Eurofins Scientific','EU','EQUITY'],['URW.AS','Unibail-Rodamco','EU','EQUITY'],
+  ['SAP.DE','SAP','EU','EQUITY'],['BMW.DE','BMW','EU','EQUITY'],
+  ['MBG.DE','Mercedes-Benz','EU','EQUITY'],['SIE.DE','Siemens','EU','EQUITY'],
+  ['ALV.DE','Allianz','EU','EQUITY'],['BAYN.DE','Bayer','EU','EQUITY'],
+  ['BASF.DE','BASF','EU','EQUITY'],['DTE.DE','Deutsche Telekom','EU','EQUITY'],
+  ['VOW3.DE','Volkswagen','EU','EQUITY'],['ADS.DE','Adidas','EU','EQUITY'],
+  ['HSBA.L','HSBC','EU','EQUITY'],['SHEL.L','Shell','EU','EQUITY'],
+  ['AZN.L','AstraZeneca','EU','EQUITY'],['BP.L','BP','EU','EQUITY'],
+  ['ULVR.L','Unilever','EU','EQUITY'],['GSK.L','GSK','EU','EQUITY'],
+  ['NOVN.SW','Novartis','EU','EQUITY'],['NESN.SW','Nestle','EU','EQUITY'],
+  ['ROG.SW','Roche','EU','EQUITY'],['ASML.AS','ASML','EU','EQUITY'],
+  ['PHIA.AS','Philips','EU','EQUITY'],['INGA.AS','ING Group','EU','EQUITY'],
+  ['AAPL','Apple','US','EQUITY'],['MSFT','Microsoft','US','EQUITY'],
+  ['GOOGL','Alphabet Google','US','EQUITY'],['AMZN','Amazon','US','EQUITY'],
+  ['NVDA','Nvidia','US','EQUITY'],['META','Meta Facebook','US','EQUITY'],
+  ['TSLA','Tesla','US','EQUITY'],['BRK-B','Berkshire Hathaway','US','EQUITY'],
+  ['JPM','JPMorgan Chase','US','EQUITY'],['V','Visa','US','EQUITY'],
+  ['JNJ','Johnson Johnson','US','EQUITY'],['WMT','Walmart','US','EQUITY'],
+  ['XOM','ExxonMobil','US','EQUITY'],['PG','Procter Gamble','US','EQUITY'],
+  ['MA','Mastercard','US','EQUITY'],['CVX','Chevron','US','EQUITY'],
+  ['HD','Home Depot','US','EQUITY'],['ABBV','AbbVie','US','EQUITY'],
+  ['MRK','Merck','US','EQUITY'],['COST','Costco','US','EQUITY'],
+  ['AVGO','Broadcom','US','EQUITY'],['AMD','AMD Advanced Micro','US','EQUITY'],
+  ['NFLX','Netflix','US','EQUITY'],['DIS','Disney','US','EQUITY'],
+  ['PYPL','PayPal','US','EQUITY'],['INTC','Intel','US','EQUITY'],
+  ['CRM','Salesforce','US','EQUITY'],['ORCL','Oracle','US','EQUITY'],
+  ['CSCO','Cisco','US','EQUITY'],['BA','Boeing','US','EQUITY'],
+  ['GE','GE Aerospace','US','EQUITY'],['CAT','Caterpillar','US','EQUITY'],
+  ['GS','Goldman Sachs','US','EQUITY'],['MS','Morgan Stanley','US','EQUITY'],
+  ['UBER','Uber','US','EQUITY'],['ABNB','Airbnb','US','EQUITY'],
+  ['SPOT','Spotify','US','EQUITY'],['SQ','Block Square','US','EQUITY'],
+  ['SHOP','Shopify','US','EQUITY'],['COIN','Coinbase','US','EQUITY'],
+  ['PLTR','Palantir','US','EQUITY'],['ARM','ARM Holdings','US','EQUITY'],
+  ['7974.T','Nintendo','AS','EQUITY'],['7203.T','Toyota','AS','EQUITY'],
+  ['6758.T','Sony','AS','EQUITY'],['9984.T','SoftBank','AS','EQUITY'],
+  ['6861.T','Keyence','AS','EQUITY'],['7267.T','Honda','AS','EQUITY'],
+  ['IWDA.AS','iShares MSCI World ETF','EU','ETF'],['CSPX.L','iShares SP500','EU','ETF'],
+  ['CW8.PA','Amundi MSCI World','EU','ETF'],['PANX.PA','Amundi Nasdaq 100','EU','ETF'],
+  ['LYPS.DE','Amundi SP500','EU','ETF'],['MWRD.PA','iShares World ETF','EU','ETF'],
+  ['BTC-USD','Bitcoin','COMMO','CRYPTOCURRENCY'],['ETH-USD','Ethereum','COMMO','CRYPTOCURRENCY'],
+  ['BNB-USD','BNB Binance','COMMO','CRYPTOCURRENCY'],['SOL-USD','Solana','COMMO','CRYPTOCURRENCY'],
+  ['XRP-USD','XRP Ripple','COMMO','CRYPTOCURRENCY'],['ADA-USD','Cardano','COMMO','CRYPTOCURRENCY'],
+  ['DOGE-USD','Dogecoin','COMMO','CRYPTOCURRENCY'],['AVAX-USD','Avalanche','COMMO','CRYPTOCURRENCY'],
+  ['DOT-USD','Polkadot','COMMO','CRYPTOCURRENCY'],['MATIC-USD','Polygon','COMMO','CRYPTOCURRENCY'],
+  ['GC=F','Or Gold','COMMO','FUTURE'],['SI=F','Argent Silver','COMMO','FUTURE'],
+  ['CL=F','Petrole WTI','COMMO','FUTURE'],['BZ=F','Petrole Brent','COMMO','FUTURE'],
+  ['NG=F','Gaz naturel','COMMO','FUTURE'],['HG=F','Cuivre Copper','COMMO','FUTURE'],
+];
+
+function localSearch(q){
+  const s=q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  if(!s)return[];
+  return STOCKS_DB.filter(([ticker,name])=>{
+    const t=ticker.toLowerCase();
+    const n=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return t.startsWith(s)||t.includes(s)||n.includes(s)||
+      n.split(/[\s\-\/]/).some(w=>w.startsWith(s));
+  }).slice(0,8);
+}
+
 async function smartAutocomplete(query, dropdownId, cbName){
   const dd=document.getElementById(dropdownId);
   if(!dd)return;
   clearTimeout(acDebounce);
-  if(query.length<2){dd.style.display='none';return;}
-  acDebounce=setTimeout(async()=>{
-    const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&enableFuzzyQuery=true&enableEnhancedTrivialQuery=true`;
-    try{
-      const r=await fetch(PROXY(url),{signal:AbortSignal.timeout(4000)});
-      const d=await r.json();
-      const quotes=(d.quotes||[]).filter(x=>['EQUITY','ETF','CRYPTOCURRENCY','FUTURE','INDEX'].includes(x.quoteType)).slice(0,7);
-      if(!quotes.length){dd.style.display='none';return;}
-      dd.innerHTML=quotes.map(q=>{
-        const name=q.longname||q.shortname||q.symbol;
-        return`<div class="ac-item" onclick="${cbName}('${q.symbol}','${name.replace(/'/g,"\\'")}','${q.exchDisp||q.exchange||''}','${q.quoteType||''}')">
-          <span class="ac-sym">${q.symbol}</span><span class="ac-name">${name}</span><span class="ac-exch">${q.exchDisp||q.exchange||''}</span>
-        </div>`;
-      }).join('');
-      dd.style.display='block';
-    }catch{dd.style.display='none';}
-  },200);
+  if(query.length<1){dd.style.display='none';return;}
+  const local=localSearch(query);
+  if(local.length){
+    showDropdown(dd,local.map(([t,n,exch,type])=>({symbol:t,name:n,exchange:exch,type})),cbName);
+  } else {
+    dd.style.display='none';
+  }
+  if(query.length>=2){
+    acDebounce=setTimeout(async()=>{
+      const url=`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=true`;
+      try{
+        const r=await fetch(PROXY(url),{signal:AbortSignal.timeout(3000)});
+        const d=await r.json();
+        const quotes=(d.quotes||[]).filter(x=>['EQUITY','ETF','CRYPTOCURRENCY','FUTURE'].includes(x.quoteType)).slice(0,8);
+        if(quotes.length) showDropdown(dd,quotes.map(q=>({symbol:q.symbol,name:q.longname||q.shortname||q.symbol,exchange:q.exchDisp||q.exchange||'',type:q.quoteType||''})),cbName);
+      }catch{}
+    },250);
+  }
 }
+
+function showDropdown(dd,results,cbName){
+  if(!results.length){dd.style.display='none';return;}
+  dd.innerHTML=results.map(q=>{
+    const safeName=(q.name||'').replace(/'/g,'\\"').replace(/"/g,'&quot;');
+    return`<div class="ac-item" onclick="${cbName}('${q.symbol}','${safeName}','${q.exchange||''}','${q.type||''}')">
+      <span class="ac-sym">${q.symbol}</span><span class="ac-name">${q.name}</span><span class="ac-exch">${q.exchange||''}</span>
+    </div>`;
+  }).join('');
+  dd.style.display='block';
+}
+
 
 document.addEventListener('click',e=>{
   if(!e.target.closest('.ac-wrap'))
