@@ -683,6 +683,7 @@ async function getPrice(ticker){
 
 async function refreshAll(){
   toast('Actualisation...');
+  await fetchRates();
   const tickers=[...new Set([...POS.map(p=>p.ticker),...WATCH.map(w=>w.ticker)])];
   let ok=0;
   await Promise.all(tickers.map(async t=>{
@@ -778,8 +779,29 @@ document.addEventListener('click',e=>{
 // ── ADD / DELETE ────────────────────────────────────
 const gv=id=>(document.getElementById(id)?.value||'').trim();
 const fmt=(n,d=2)=>parseFloat(n).toFixed(d);
-const sy=c=>c==='USD'?'$':'€';
-const rt=c=>c==='USD'?0.92:1;
+// Taux de change dynamiques — mis à jour au refresh
+const RATES = { EUR: 1, USD: 0.92, GBP: 1.17, CHF: 1.05, JPY: 0.0061, CAD: 0.68, AUD: 0.59, HKD: 0.12 };
+
+function rt(currency){ return RATES[currency] || 1; }
+const sy = () => '€'; // Tout en EUR
+
+async function fetchRates(){
+  try{
+    // EUR/USD inverse = USD/EUR
+    const pairs = ['EURUSD=X','EURGBP=X','EURCHF=X','EURJPY=X','EURCAD=X','EURAUD=X'];
+    const results = await Promise.allSettled(pairs.map(p =>
+      fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${p}?interval=1d&range=1d`)
+    ));
+    const symbols = ['USD','GBP','CHF','JPY','CAD','AUD'];
+    results.forEach((r, i) => {
+      if(r.status==='fulfilled' && r.value?.chart?.result?.[0]?.meta){
+        const rate = r.value.chart.result[0].meta.regularMarketPrice;
+        if(rate > 0) RATES[symbols[i]] = parseFloat((1/rate).toFixed(6));
+      }
+    });
+    console.log('Taux EUR:', RATES);
+  } catch(e){ console.warn('Taux non récupérés, utilisation des taux par défaut'); }
+}
 const cl=n=>n>0?'mg':n<0?'mr':'mm';
 const sg=n=>n>=0?'+':'';
 
@@ -917,7 +939,7 @@ function renderPosCards(){
   if(title)title.textContent='Ma performance \u00B7 '+POS.length+' position'+(POS.length>1?'s':'');
   el.innerHTML=POS.map((p,i)=>{
     const r=rt(p.currency||'EUR'),v=p.price*p.qty*r,pnl=(p.price-p.pru)*p.qty*r,pct=(p.price-p.pru)/p.pru*100;
-    const s=sy(p.currency||'EUR'),cc=CC[i%CC.length];
+    const s=sy(),cc=CC[i%CC.length];
     const init=p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
     const chgBg=pct>0?'var(--green-bg)':pct<0?'var(--red-bg)':'var(--bg)';
     const chgFg=pct>0?'var(--green)':pct<0?'var(--red)':'var(--muted)';
@@ -961,7 +983,7 @@ function renderAllocBars(tv){
   const sorted=[...POS].sort((a,b)=>(b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR')));
   el.innerHTML=sorted.map((p,i)=>{
     const v=p.price*p.qty*rt(p.currency||'EUR'),pct=Math.max(v/total*100,1);
-    return`<div class="alloc-item"><div class="alloc-lbl" title="${p.name}">${p.ticker}</div><div class="alloc-bar"><div class="alloc-fill" style="width:${pct.toFixed(0)}%;background:${COLORS[i%COLORS.length]};"></div></div><div class="alloc-pct">${pct.toFixed(0)}%</div><div class="alloc-amt">${sy(p.currency||'EUR')}${fmt(v)}</div></div>`;
+    return`<div class="alloc-item"><div class="alloc-lbl" title="${p.name}">${p.ticker}</div><div class="alloc-bar"><div class="alloc-fill" style="width:${pct.toFixed(0)}%;background:${COLORS[i%COLORS.length]};"></div></div><div class="alloc-pct">${pct.toFixed(0)}%</div><div class="alloc-amt">${sy()}${fmt(v)}</div></div>`;
   }).join('');
 }
 
@@ -992,7 +1014,7 @@ function renderPosTable(){
   if(!POS.length){el.innerHTML='<div class="empty"><div class="empty-ico">&#128203;</div><div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px;">Aucun achat</div><p style="font-size:12px;">Utilise le formulaire ci-dessus</p></div>';return;}
   let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU</th><th>Qte</th><th>Cours</th><th>Investi</th><th>Valeur act.</th><th>PV/MV</th><th>%</th><th></th></tr></thead><tbody>';
   POS.forEach(p=>{
-    const s=sy(p.currency||'EUR'),inv=p.pru*p.qty,v=p.price*p.qty,pnl=v-inv,pct=(p.price-p.pru)/p.pru*100;
+    const s=sy(),inv=p.pru*p.qty,v=p.price*p.qty,pnl=v-inv,pct=(p.price-p.pru)/p.pru*100;
     html+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input class="ci" type="number" value="${fmt(p.price)}" onchange="updPrice(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td><span class="pvb ${pnl>=0?'pvg':'pvr'}">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</span></td><td style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pct)}${fmt(Math.abs(pct))}%</td><td><button class="del-btn" onclick="delPos(${p.id})">&#10005;</button></td></tr>`;
   });
   el.innerHTML=html+'</tbody></table>';
@@ -1005,7 +1027,7 @@ function renderSaleTable(){
   let tot=0;
   let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU achat</th><th>Prix vente</th><th>Qte</th><th>PV/MV</th><th>Flat tax 30%</th><th></th></tr></thead><tbody>';
   SALES.forEach(s=>{
-    tot+=s.pnl*rt(s.currency||'EUR');const ss=sy(s.currency||'EUR');const tax=s.pnl>0?s.pnl*0.3:0;
+    tot+=s.pnl*rt(s.currency||'EUR');const ss=sy();const tax=s.pnl>0?s.pnl*0.3:0;
     html+=`<tr><td><div class="tsym">${s.ticker}</div><div class="tname">${s.name}</div></td><td>${s.date}</td><td>${ss}${fmt(s.pru)}</td><td>${ss}${fmt(s.sell)}</td><td>${s.qty}</td><td><span class="pvb ${s.pnl>=0?'pvg':'pvr'}">${sg(s.pnl)}${ss}${fmt(Math.abs(s.pnl))}</span></td><td style="color:var(--muted);font-size:11px;">${tax>0?'-\u20AC'+fmt(tax):'\u2014'}</td><td><button class="del-btn" onclick="delSale(${s.id})">&#10005;</button></td></tr>`;
   });
   html+=`</tbody><tfoot><tr><td>Total PV/MV</td><td colspan="4"></td><td style="text-align:right;" class="${cl(tot)}">${sg(tot)}\u20AC${fmt(Math.abs(tot))}</td><td></td><td></td></tr></tfoot></table>`;
@@ -1084,7 +1106,10 @@ setInterval(()=>{
 
 // ── INIT ───────────────────────────────────────────
 renderDash();
-if(POS.length||WATCH.length) setTimeout(refreshAll,400);
+fetchRates().then(()=>{
+  if(POS.length||WATCH.length) setTimeout(refreshAll,400);
+  else renderDash();
+});
 
 
 // ════════════════════════════════════════════════
