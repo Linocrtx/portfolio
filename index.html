@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -446,6 +447,54 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
   object-fit:contain;border-radius:3px;
   display:block;
 }
+
+/* ── POSITIONS TABLE (dashboard) ── */
+.pos-dash-table{width:100%;border-collapse:collapse;background:var(--card);margin-bottom:1.75rem}
+.pos-dash-table thead th{
+  background:var(--card2);
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);padding:10px 14px;text-align:right;
+  border-bottom:2px solid var(--border);white-space:nowrap;
+}
+.pos-dash-table thead th:first-child{text-align:left;padding-left:16px}
+.pos-dash-table thead th:last-child{padding-right:16px}
+.pos-dash-table tbody tr{
+  border-bottom:1px solid var(--border);
+  transition:background .1s;cursor:default;
+}
+.pos-dash-table tbody tr:last-child{border-bottom:none}
+.pos-dash-table tbody tr:hover{background:var(--card2)}
+.pos-dash-table td{
+  padding:12px 14px;text-align:right;
+  font-size:13px;color:var(--text);vertical-align:middle;
+}
+.pos-dash-table td:first-child{text-align:left;padding-left:16px}
+.pos-dash-table td:last-child{padding-right:16px}
+
+/* Instrument cell */
+.pdt-instrument{display:flex;align-items:center;gap:10px}
+.pdt-logo{
+  width:32px;height:32px;border-radius:50%;
+  background:var(--card2);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--text2);
+  flex-shrink:0;overflow:hidden;
+}
+.pdt-logo img{width:100%;height:100%;object-fit:contain;padding:4px;border-radius:50%}
+.pdt-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.pdt-ticker{font-size:11px;color:var(--muted);margin-top:1px}
+
+/* % change bar */
+.pdt-bar-wrap{display:flex;align-items:center;gap:8px}
+.pdt-bar{width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0}
+.pdt-bar-fill{height:100%;border-radius:2px}
+
+/* Weight bar */
+.pdt-weight{display:flex;align-items:center;gap:8px}
+.pdt-weight-bar{width:50px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0}
+.pdt-weight-fill{height:100%;background:var(--blue);border-radius:2px}
+
+.pos-dash-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden;box-shadow:var(--sh);margin-bottom:1.75rem}
 </style>
 </head>
 <body>
@@ -491,7 +540,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <div class="chart-box"><canvas id="c-main"></canvas></div>
   </div>
   <div class="sec-t" id="pos-title"></div>
-  <div class="pos-grid" id="pos-cards"></div>
+  <div id="pos-cards"></div>
   <div class="cg2">
     <div class="card"><div class="card-hd">Repartition</div><div id="alloc-bars"></div></div>
     <div class="card"><div class="card-hd">PV/MV realisees cumulees</div><div class="chart-box"><canvas id="c-pnl"></canvas></div></div>
@@ -551,59 +600,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <div class="ft">Surveiller une valeur</div>
     <div class="acw">
       <div style="display:flex;gap:8px;align-items:center;">
-        <input id="wac-in" class="ac-in" placeholder="Cherche une valeur..." autocomplete="off" oninput="wacSearch(this.value)" style="flex:1;">
-        <button class="btn-p" onclick="addWatch()">+ Surveiller</button>
-      </div>
-      <div class="ac-dd" id="wac-dd"></div>
-      <div class="sel-pill" id="wac-pill" style="margin-top:8px;">
-        <span class="sp-sym" id="wac-sym"></span>
-        <span class="sp-name" id="wac-nm"></span>
-        <span style="font-size:11px;color:var(--green);font-weight:600;margin-left:auto;">&#10003; Selectionne</span>
-        <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;" onclick="clearWac()">&#10005;</button>
-      </div>
-    </div>
-  </div>
-  <div class="pos-grid" id="watch-grid"></div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-
-
-<!-- WATCH DETAIL MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <div class="modal-sym" id="m-sym"></div>
-        <div class="modal-name" id="m-name"></div>
-        <div class="modal-price-row">
-          <div class="modal-price" id="m-price"></div>
-          <span class="badge bm" id="m-chg"></span>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-periods">
-        <button class="mpbtn" onclick="setMP('1W',this)">1S</button>
-        <button class="mpbtn on" onclick="setMP('1M',this)">1M</button>
-        <button class="mpbtn" onclick="setMP('3M',this)">3M</button>
-        <button class="mpbtn" onclick="setMP('6M',this)">6M</button>
-        <button class="mpbtn" onclick="setMP('1Y',this)">1A</button>
-        <button class="mpbtn" onclick="setMP('YTD',this)">YTD</button>
-        <button class="mpbtn" onclick="setMP('3Y',this)">3A</button>
-        <button class="mpbtn" onclick="setMP('5Y',this)">5A</button>
-      </div>
-      <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
-      <div class="modal-kpis" id="m-kpis"></div>
-      <div class="news-hd">Actualités récentes</div>
-      <div id="m-news"></div>
-    </div>
-  </div>
-</div>
-
-<script>
+        <input id="wac-in" class="ac-i
 
 
 // ── LOGOS via Clearbit ──────────────────────────────
@@ -1035,50 +1032,96 @@ function renderMainChart(){
 }
 
 function renderPosCards(){
-  const el=document.getElementById('pos-cards');
-  const title=document.getElementById('pos-title');
-  if(!POS.length){if(el)el.innerHTML='';if(title)title.textContent='';return;}
-  if(title)title.textContent='Ma performance \u00B7 '+POS.length+' position'+(POS.length>1?'s':'');
-  el.innerHTML=POS.map((p,i)=>{
-    const r=rt(p.currency||'EUR'),v=p.price*p.qty*r,pnl=(p.price-p.pru)*p.qty*r,pct=(p.price-p.pru)/p.pru*100;
-    const s=sy(),cc=CC[i%CC.length];
-    const init=p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
-    const chgBg=pct>0?'var(--green-bg)':pct<0?'var(--red-bg)':'var(--bg)';
-    const chgFg=pct>0?'var(--green)':pct<0?'var(--red)':'var(--muted)';
-    const pLogo=getLogo(p.ticker);
-    const pIcon=pLogo
-      ?`<div class="pc-icon pc-logo" id="pi-${p.id}"><img src="${pLogo}" alt="${init}" loading="lazy" onerror="var p2=document.getElementById('pi-${p.id}');p2.classList.remove('pc-logo');p2.style.background='${cc.bg}';p2.style.color='${cc.fg}';p2.textContent='${init}';"></div>`
-      :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
-    return`<div class="pos-card">
-      <div class="pc-top">${pIcon}
-      <span class="badge" style="background:${chgBg};color:${chgFg};border-color:transparent;">${sg(pct)}${fmt(Math.abs(pct))}%</span></div>
-      <div class="pc-name">${p.name}</div><div class="pc-ticker">${p.ticker}</div>
-      <div class="pc-spark"><canvas id="sp-${p.id}" width="180" height="36"></canvas></div>
-      <div class="pc-val">${s}${fmt(v)}</div>
-      <div class="pc-pv" style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</div>
-    </div>`;
-  }).join('');
-  renderSparklines();
-}
+  const el    = document.getElementById('pos-cards');
+  const title = document.getElementById('pos-title');
+  if(!POS.length){ if(el) el.innerHTML=''; if(title) title.textContent=''; return; }
 
-function renderSparklines(){
-  POS.forEach(p=>{
-    const c=document.getElementById('sp-'+p.id);
-    if(!c) return;
-    const h=sliceH(p.history).filter(x=>x!=null);
-    const W=180,H=36,ctx=c.getContext('2d');
-    ctx.clearRect(0,0,W,H);
-    if(h.length<2){ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.strokeStyle='#e8e8e4';ctx.lineWidth=1;ctx.stroke();return;}
-    const mn=Math.min(...h),mx=Math.max(...h),rng=mx-mn||1;
-    const x=i=>(i/(h.length-1))*(W-2)+1;
-    const y=v=>H-2-((v-mn)/rng)*(H-4);
-    const col=p.price>=p.pru?'#16a34a':'#dc2626';
-    ctx.beginPath();ctx.moveTo(x(0),y(h[0]));
-    h.forEach((v,i)=>{if(i>0)ctx.lineTo(x(i),y(v));});
-    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
-    ctx.fillStyle=p.price>=p.pru?'rgba(22,163,74,0.09)':'rgba(220,38,38,0.09)';ctx.fill();
-  });
+  const sorted = [...POS].sort((a,b)=>
+    (b.price*b.qty*rt(b.currency||'EUR')) - (a.price*a.qty*rt(a.currency||'EUR'))
+  );
+  const totalVal = sorted.reduce((s,p)=>s+p.price*p.qty*rt(p.currency||'EUR'),0) || 1;
+
+  if(title) title.textContent = 'Mes positions · ' + POS.length + ' valeur' + (POS.length>1?'s':'');
+
+  // Build table
+  let rows = sorted.map((p,i)=>{
+    const r2   = rt(p.currency||'EUR');
+    const val  = p.price * p.qty * r2;
+    const inv  = p.pru   * p.qty * r2;
+    const pnl  = val - inv;
+    const pct  = (p.price - p.pru) / p.pru * 100;
+    const dayChg = p.chgDay != null ? p.chgDay : null; // variation du jour si dispo
+    const weight = (val / totalVal) * 100;
+
+    const pnlColor  = pnl  >= 0 ? 'var(--green)' : 'var(--red)';
+    const pctColor  = pct  >= 0 ? 'var(--green)' : 'var(--red)';
+    const pctBg     = pct  >= 0 ? 'var(--green)' : 'var(--red)';
+    const barW      = Math.min(Math.abs(pct)*2, 100).toFixed(0);
+
+    const logo  = getLogo(p.ticker);
+    const init  = p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
+    const cc    = CC[i % CC.length];
+    const logoHtml = logo
+      ? `<div class="pdt-logo" id="pdl-${p.id}"><img src="${logo}" alt="${init}" loading="lazy" onerror="var e=document.getElementById('pdl-${p.id}');e.style.background='${cc.bg}';e.style.color='${cc.fg}';e.textContent='${init}';"></div>`
+      : `<div class="pdt-logo" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
+
+    return `<tr>
+      <td>
+        <div class="pdt-instrument">
+          ${logoHtml}
+          <div>
+            <div class="pdt-name">${p.name}</div>
+            <div class="pdt-ticker">${p.ticker}</div>
+          </div>
+        </div>
+      </td>
+      <td style="color:var(--muted);">${p.qty}</td>
+      <td>€${fmt(p.pru)}</td>
+      <td style="font-weight:500;">€${fmt(p.price)}</td>
+      <td>
+        <div class="pdt-bar-wrap">
+          <span style="color:${pctColor};font-weight:500;min-width:52px;text-align:right;">${sg(pct)}${fmt(Math.abs(pct))}%</span>
+          <div class="pdt-bar"><div class="pdt-bar-fill" style="width:${barW}%;background:${pctBg};"></div></div>
+        </div>
+      </td>
+      <td style="font-weight:500;">€${fmt(val)}</td>
+      <td style="color:${pnlColor};font-weight:500;">${sg(pnl)}€${fmt(Math.abs(pnl))}</td>
+      <td>
+        <div class="pdt-weight">
+          <span style="color:var(--muted);font-size:11px;min-width:32px;text-align:right;">${weight.toFixed(1)}%</span>
+          <div class="pdt-weight-bar"><div class="pdt-weight-fill" style="width:${weight.toFixed(0)}%;"></div></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="pos-dash-wrap">
+    <table class="pos-dash-table">
+      <thead>
+        <tr>
+          <th>Instrument</th>
+          <th>Qté</th>
+          <th>PRU</th>
+          <th>Cours</th>
+          <th>Perf.</th>
+          <th>Valeur</th>
+          <th>+/- value</th>
+          <th>Poids</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="background:var(--card2);border-top:2px solid var(--border);">
+          <td colspan="5" style="text-align:left;font-size:11px;color:var(--muted);padding:10px 16px;">Total portefeuille</td>
+          <td style="font-weight:600;font-size:13px;padding:10px 14px;text-align:right;">€${fmt(totalVal)}</td>
+          <td style="font-weight:600;font-size:13px;padding:10px 14px;text-align:right;color:${(totalVal - sorted.reduce((s,p)=>s+p.pru*p.qty*rt(p.currency||'EUR'),0))>=0?'var(--green)':'var(--red)'};">
+            ${sg(totalVal - sorted.reduce((s,p)=>s+p.pru*p.qty*rt(p.currency||'EUR'),0))}€${fmt(Math.abs(totalVal - sorted.reduce((s,p)=>s+p.pru*p.qty*rt(p.currency||'EUR'),0)))}
+          </td>
+          <td style="padding:10px 16px;text-align:right;font-size:11px;color:var(--muted);">100%</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`;
 }
 
 function renderAllocBars(tv){
@@ -1310,6 +1353,66 @@ async function loadModal(w){
     ].map(k=>`<div class="mkpi"><div class="mkpi-l">${k.l}</div><div class="mkpi-v">${k.v}</div></div>`).join('');
   } else {
     document.getElementById('m-kpis').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:.5rem 0;grid-column:1/-1;">Données indisponibles — clique Actualiser</div>';
+  }
+  drawMChart();
+  updateModalPct();
+
+  // News
+  const news = newsD?.news?.slice(0,6)||[];
+  document.getElementById('m-news').innerHTML = news.length
+    ? news.map(n=>{
+        const d = n.providerPublishTime
+          ? new Date(n.providerPublishTime*1000).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})
+          : '';
+        return `<div class="news-item">
+          <a class="news-ititle" href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
+          <div class="news-imeta">
+            <span class="news-src">${n.publisher||''}</span>
+            <span class="news-date">${d}</span>
+            <a class="news-link" href="${n.link}" target="_blank" rel="noopener">↗ Lire</a>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--muted);font-size:12px;padding:.5rem 0;">Aucune actualité disponible.</div>';
+}
+
+function drawMChart(){
+  killChart('c-modal');
+  const canvas = document.getElementById('c-modal');
+  if(!canvas) return;
+  const h = sliceMH(mHistory).filter(x=>x!=null);
+  if(h.length < 2){
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.clientWidth||700,240);
+    ctx.fillStyle='#9a9a94';ctx.font='13px Inter';ctx.textAlign='center';
+    ctx.fillText('Cliquez Actualiser puis rouvrez pour voir le graphique',(canvas.clientWidth||700)/2,120);
+    return;
+  }
+  const isUp = h[h.length-1]>=h[0];
+  const col  = isUp?'#16a34a':'#dc2626';
+  CH['c-modal'] = new Chart(canvas,{
+    type:'line',
+    data:{labels:h.map(()=>''),datasets:[{
+      data:h,borderColor:col,
+      backgroundColor:isUp?'rgba(22,163,74,0.08)':'rgba(220,38,38,0.07)',
+      fill:true,tension:0.35,pointRadius:0,borderWidth:2,
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#fff',titleColor:'#0d0d0c',bodyColor:'#3a3a36',borderColor:'#e2e2dc',borderWidth:1,callbacks:{label:c=>' '+fmt(c.raw)}}
+      },
+      scales:{
+        x:{display:false},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>fmt(v),color:'#7a7a74',font:{size:11}},border:{display:false}}
+      }
+    }
+  });
+}
+
+;
   }
   drawMChart();
   updateModalPct();
