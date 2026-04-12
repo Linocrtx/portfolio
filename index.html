@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -484,6 +483,9 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
         <button class="pbtn" onclick="setPer('3M',this)">3M</button>
         <button class="pbtn" onclick="setPer('6M',this)">6M</button>
         <button class="pbtn" onclick="setPer('1Y',this)">1A</button>
+        <button class="pbtn" onclick="setPer('YTD',this)">YTD</button>
+        <button class="pbtn" onclick="setPer('3Y',this)">3A</button>
+        <button class="pbtn" onclick="setPer('5Y',this)">5A</button>
       </div>
     </div>
     <div class="chart-box"><canvas id="c-main"></canvas></div>
@@ -589,6 +591,9 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
         <button class="mpbtn" onclick="setMP('3M',this)">3M</button>
         <button class="mpbtn" onclick="setMP('6M',this)">6M</button>
         <button class="mpbtn" onclick="setMP('1Y',this)">1A</button>
+        <button class="mpbtn" onclick="setMP('YTD',this)">YTD</button>
+        <button class="mpbtn" onclick="setMP('3Y',this)">3A</button>
+        <button class="mpbtn" onclick="setMP('5Y',this)">5A</button>
       </div>
       <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
       <div class="modal-kpis" id="m-kpis"></div>
@@ -748,7 +753,7 @@ function getCurrencyFromTicker(ticker, yahooCurrency){
 }
 
 async function getPrice(ticker){
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=6mo`;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5y`;
   const d=await fetchY(url);
   if(!d) return null;
   const meta=d?.chart?.result?.[0]?.meta;
@@ -937,7 +942,15 @@ function setPer(p,btn){
 
 function sliceH(h){
   if(!h?.length) return [];
-  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252}[PERIOD]||22;
+  if(PERIOD==='YTD'){
+    // Depuis le 1er janvier de cette année
+    const startOfYear = Math.floor(new Date(new Date().getFullYear(),0,1)/1000);
+    // On estime ~252 jours de bourse par an, on prend depuis le début de l'année
+    const dayOfYear = Math.floor((Date.now()/1000 - startOfYear)/86400);
+    const tradingDays = Math.round(dayOfYear * 252/365);
+    return h.slice(-Math.max(tradingDays,1));
+  }
+  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252,'3Y':756,'5Y':1260}[PERIOD]||22;
   return h.slice(-Math.min(n,h.length));
 }
 
@@ -1034,7 +1047,7 @@ function renderPosCards(){
     const chgFg=pct>0?'var(--green)':pct<0?'var(--red)':'var(--muted)';
     const pLogo=getLogo(p.ticker);
     const pIcon=pLogo
-      ?`<div class="pc-icon pc-logo"><img src="${pLogo}" alt="${init}" loading="lazy" onerror="this.closest('.pc-icon').classList.remove('pc-logo');this.closest('.pc-icon').style.background='${cc.bg}';this.closest('.pc-icon').style.color='${cc.fg}';this.closest('.pc-icon').textContent='${init}'"></div>`
+      ?`<div class="pc-icon pc-logo" id="pi-${p.id}"><img src="${pLogo}" alt="${init}" loading="lazy" onerror="var p2=document.getElementById('pi-${p.id}');p2.classList.remove('pc-logo');p2.style.background='${cc.bg}';p2.style.color='${cc.fg}';p2.textContent='${init}';"></div>`
       :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
     return`<div class="pos-card">
       <div class="pc-top">${pIcon}
@@ -1139,7 +1152,7 @@ function renderWatchGrid(){
     const init=w.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
     const wLogo=getLogo(w.ticker);
     const wIcon=wLogo
-      ?`<div class="pc-icon pc-logo"><img src="${wLogo}" alt="${init}" loading="lazy" onerror="this.closest('.pc-icon').classList.remove('pc-logo');this.closest('.pc-icon').style.background='${cc.bg}';this.closest('.pc-icon').style.color='${cc.fg}';this.closest('.pc-icon').textContent='${init}'"></div>`
+      ?`<div class="pc-icon pc-logo" id="wi-${w.id}"><img src="${wLogo}" alt="${init}" loading="lazy" onerror="var p=document.getElementById('wi-${w.id}');p.classList.remove('pc-logo');p.style.background='${cc.bg}';p.style.color='${cc.fg}';p.textContent='${init}';"></div>`
       :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
     return`<div class="pos-card" onclick="openModal(${w.id})" style="cursor:pointer;" title="Cliquez pour le détail">
       <div class="pc-top">${wIcon}
@@ -1270,13 +1283,18 @@ function updateModalPct(){
 
 function sliceMH(h){
   if(!h?.length) return [];
-  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252}[mPeriod]||22;
+  if(mPeriod==='YTD'){
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,1))/86400000);
+    const tradingDays = Math.round(dayOfYear * 252/365);
+    return h.slice(-Math.max(tradingDays,1));
+  }
+  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252,'3Y':756,'5Y':1260}[mPeriod]||22;
   return h.slice(-Math.min(n,h.length));
 }
 
 async function loadModal(w){
   const [priceD, newsD] = await Promise.all([
-    fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(w.ticker)}?interval=1d&range=6mo`),
+    fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(w.ticker)}?interval=1d&range=5y`),
     fetchY(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(w.ticker)}&quotesCount=0&newsCount=8`),
   ]);
 
