@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -648,7 +649,8 @@ const LOGO_DOMAINS = {
 function getLogo(ticker){
   const domain = LOGO_DOMAINS[ticker];
   if(!domain) return null;
-  return `https://logo.clearbit.com/${domain}`;
+  // Google favicon service — pas de CORS, fonctionne partout
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 }
 
 // ── STATE ──────────────────────────────────────────
