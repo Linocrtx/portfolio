@@ -1,244 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lino · Portfolio</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
-// ── CLAUDE API ─────────────────────────────────────────
-const CLAUDE_KEY = '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';
-
-async function claudeCall(system, user, tokens=800){
-  try{
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:tokens,
-        system,messages:[{role:'user',content:user}]})
-    });
-    const d = await res.json();
-    if(d.error) throw new Error(d.error.message);
-    return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-  }catch(e){ return null; }
-}
-
-// ── MODAL STATE ─────────────────────────────────────────
-let modalWatch = null;
-let modalPeriod = '1M';
-let modalHistory6M = [];
-
-function openModal(watchId){
-  const w = WATCH.find(x=>x.id===watchId);
-  if(!w) return;
-  modalWatch = w;
-  modalPeriod = '1M';
-
-  // Fill header
-  document.getElementById('m-sym').textContent = w.ticker;
-  document.getElementById('m-name').textContent = w.name;
-  document.getElementById('m-price').textContent = w.price>0 ? fmt(w.price) : '—';
-  const chgEl = document.getElementById('m-chg');
-  if(w.chg!=null){ chgEl.textContent=(w.chg>=0?'+':'')+fmt(Math.abs(w.chg))+'%'; chgEl.className='badge '+(w.chg>=0?'bg':'br'); }
-  else{ chgEl.textContent='—'; chgEl.className='badge bm'; }
-
-  // Reset period buttons
-  document.querySelectorAll('.mpbtn').forEach(b=>b.classList.remove('on'));
-  document.querySelectorAll('.mpbtn')[1].classList.add('on');
-
-  // Show modal
-  document.getElementById('modal-overlay').classList.add('on');
-  document.body.style.overflow='hidden';
-
-  // Load everything in parallel
-  loadModalData(w);
-}
-
-function closeModal(e){
-  if(e.target === document.getElementById('modal-overlay')) closeModalDirect();
-}
-function closeModalDirect(){
-  document.getElementById('modal-overlay').classList.remove('on');
-  document.body.style.overflow='';
-  killChart('c-modal');
-}
-
-function setModalPeriod(p, btn){
-  modalPeriod = p;
-  document.querySelectorAll('.mpbtn').forEach(b=>b.classList.remove('on'));
-  if(btn) btn.classList.add('on');
-  drawModalChart();
-}
-
-function sliceModalH(history){
-  if(!history?.length) return [];
-  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252}[modalPeriod]||22;
-  return history.slice(-Math.min(n,history.length));
-}
-
-async function loadModalData(w){
-  // Reset sections
-  document.getElementById('m-kpis').innerHTML = '';
-  document.getElementById('m-score-grid').innerHTML = `
-    <div class="score-card"><div class="score-label">Note de risque</div><div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Analyse en cours…</div></div>
-    <div class="score-card"><div class="score-label">Analyse</div><div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Chargement…</div></div>
-  `;
-  document.getElementById('m-news').innerHTML = '<div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Chargement…</div>';
-
-  // Fetch 6 month history for modal
-  const url6m = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(w.ticker)}?interval=1d&range=6mo`;
-  const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(w.ticker)}&quotesCount=0&newsCount=8`;
-
-  const [priceData, newsData, analysis] = await Promise.all([
-    fetchY(url6m),
-    fetchY(searchUrl),
-    claudeCall(
-      `Tu es un analyste financier senior. Réponds UNIQUEMENT en JSON valide, sans markdown.`,
-      `Analyse cette valeur boursière pour un investisseur particulier français, approche long terme.
-Valeur: ${w.name} (${w.ticker})
-Prix actuel: ${w.price>0?fmt(w.price)+'€/USD':'inconnu'}
-
-JSON exact requis:
-{
-  "score": <entier 0-100, 100=risque max>,
-  "verdict": "<Faible risque|Risque modéré|Risque élevé|Risque très élevé>",
-  "couleur": "<green|amber|red>",
-  "analyse_courte": "<2 phrases max sur l'opportunité/risque>",
-  "points_positifs": ["<point 1>","<point 2>","<point 3>"],
-  "points_negatifs": ["<point 1>","<point 2>"],
-  "recommandation": "<Acheter|Renforcer|Conserver|Alléger|Éviter>"
-}`, 900
-    )
-  ]);
-
-  // Draw chart with 6M data
-  if(priceData?.chart?.result?.[0]){
-    const res = priceData.chart.result[0];
-    modalHistory6M = (res.indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
-    const meta = res.meta||{};
-    // KPIs
-    const kpis = [
-      {l:'Plus haut 52 sem.', v: meta.fiftyTwoWeekHigh?fmt(meta.fiftyTwoWeekHigh)+'€':'—'},
-      {l:'Plus bas 52 sem.',  v: meta.fiftyTwoWeekLow?fmt(meta.fiftyTwoWeekLow)+'€':'—'},
-      {l:'Devise', v: meta.currency||'—'},
-    ];
-    document.getElementById('m-kpis').innerHTML = kpis.map(k=>
-      `<div class="mkpi"><div class="mkpi-label">${k.l}</div><div class="mkpi-val">${k.v}</div></div>`
-    ).join('');
-  }
-  drawModalChart();
-
-  // Score + analysis
-  if(analysis){
-    try{
-      const a = JSON.parse(analysis.replace(/```json|```/g,'').trim());
-      const scoreColor = a.couleur==='green'?'#16a34a':a.couleur==='amber'?'#d97706':'#dc2626';
-      const circumference = 2 * Math.PI * 28;
-      const offset = circumference - (circumference * (100-a.score) / 100);
-
-      document.getElementById('m-score-grid').innerHTML = `
-        <div class="score-card">
-          <div class="score-label">Note de risque</div>
-          <div class="score-ring-wrap">
-            <div class="score-ring">
-              <svg viewBox="0 0 64 64" width="72" height="72">
-                <circle class="score-ring-track" cx="32" cy="32" r="28"/>
-                <circle class="score-ring-fill" cx="32" cy="32" r="28"
-                  stroke="${scoreColor}"
-                  stroke-dasharray="${circumference}"
-                  stroke-dashoffset="${offset}"/>
-              </svg>
-              <div class="score-ring-num" style="color:${scoreColor}">${a.score}</div>
-            </div>
-            <div class="score-info">
-              <div class="score-verdict" style="color:${scoreColor}">${a.verdict}</div>
-              <div style="font-family:var(--font-d);font-size:11px;font-weight:700;letter-spacing:.04em;margin-top:4px;">Recommandation</div>
-              <div class="badge ${a.recommandation==='Acheter'||a.recommandation==='Renforcer'?'bg':a.recommandation==='Éviter'||a.recommandation==='Alléger'?'br':'bm'}" style="margin-top:4px;font-size:11px;">${a.recommandation}</div>
-            </div>
-          </div>
-        </div>
-        <div class="score-card">
-          <div class="score-label">Analyse</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;">${a.analyse_courte}</div>
-          <div style="display:flex;flex-direction:column;gap:4px;">
-            ${(a.points_positifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;"><span style="color:var(--green);flex-shrink:0;">+</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
-            ${(a.points_negatifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;"><span style="color:var(--red);flex-shrink:0;">−</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
-          </div>
-        </div>
-      `;
-    }catch(e){
-      document.getElementById('m-score-grid').innerHTML = `<div class="score-card" style="grid-column:1/-1;color:var(--muted);font-size:12px;">Analyse indisponible.</div>`;
-    }
-  }
-
-  // News
-  const news = newsData?.news?.slice(0,6)||[];
-  if(news.length){
-    document.getElementById('m-news').innerHTML = news.map(n=>{
-      const date = n.providerPublishTime ? new Date(n.providerPublishTime*1000).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div class="news-item">
-        <a class="news-item-title" href="${n.link}" target="_blank">${n.title}</a>
-        <div class="news-item-meta">
-          <span class="news-src">${n.publisher||''}</span>
-          <span class="news-date">${date}</span>
-          <a class="news-link" href="${n.link}" target="_blank">↗ Lire</a>
-        </div>
-      </div>`;
-    }).join('');
-  } else {
-    document.getElementById('m-news').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:.5rem 0;">Aucune actualité disponible.</div>';
-  }
-}
-
-function drawModalChart(){
-  killChart('c-modal');
-  const canvas = document.getElementById('c-modal');
-  if(!canvas) return;
-  const hist = sliceModalH(modalHistory6M);
-  if(hist.length<2){
-    const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width||600,240);
-    ctx.fillStyle='#b8b8b0';ctx.font='13px Inter';ctx.textAlign='center';
-    ctx.fillText('Cliquez Actualiser puis rouvrez pour voir le graphique',(canvas.clientWidth||600)/2,120);
-    return;
-  }
-  const isUp = hist[hist.length-1]>=hist[0];
-  const col = isUp?'#16a34a':'#dc2626';
-  const bg  = isUp?'rgba(22,163,74,0.07)':'rgba(220,38,38,0.06)';
-
-  CH['c-modal'] = new Chart(canvas,{
-    type:'line',
-    data:{
-      labels:hist.map(()=>''),
-      datasets:[{
-        data:hist,
-        borderColor:col,backgroundColor:bg,
-        fill:true,tension:0.35,pointRadius:0,borderWidth:2,
-      }]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          backgroundColor:'#fff',titleColor:'#0d0d0c',bodyColor:'#3a3a36',
-          borderColor:'#e2e2dc',borderWidth:1,
-          callbacks:{label:c=>' '+fmt(c.raw)}
-        }
-      },
-      scales:{
-        x:{display:false},
-        y:{
-          grid:{color:'rgba(0,0,0,0.04)'},
-          ticks:{callback:v=>fmt(v),color:'#7a7a74',font:{size:11}},
-          border:{display:false}
-        }
-      }
-    }
-  });
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Syne:wght@600;700;800&family=Geist+Mono:wght@400;500;600&display=swap');
 
@@ -561,135 +327,57 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .empty{text-align:center;padding:4rem 1rem;color:var(--muted)}
 .empty-ico{font-size:28px;margin-bottom:10px;opacity:.3}
 
+
 /* ── WATCH DETAIL MODAL ── */
-.modal-overlay{
-  display:none;position:fixed;inset:0;z-index:500;
-  background:rgba(13,13,12,.55);backdrop-filter:blur(4px);
-  align-items:center;justify-content:center;padding:1.5rem;
-}
-.modal-overlay.on{display:flex;animation:fadeIn .2s ease}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-.modal{
-  background:var(--card);border:1px solid var(--border2);
-  border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.18),0 8px 20px rgba(0,0,0,.10);
-  width:100%;max-width:860px;max-height:90vh;
-  overflow:hidden;display:flex;flex-direction:column;
-  animation:slideUp .22s cubic-bezier(.4,0,.2,1);
-}
-@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-
-.modal-header{
-  display:flex;align-items:flex-start;justify-content:space-between;
-  padding:22px 26px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
-}
-.modal-title-block{}
-.modal-sym{
-  font-family:var(--font-n);font-size:13px;font-weight:600;
-  letter-spacing:.08em;color:var(--muted);margin-bottom:4px;
-}
-.modal-name{
-  font-family:var(--font-d);font-size:22px;font-weight:800;
-  letter-spacing:-.02em;color:var(--text);margin-bottom:8px;
-}
+.modal-overlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(13,13,12,.6);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1.5rem}
+.modal-overlay.on{display:flex;animation:fadeOverlay .2s ease}
+@keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.2),0 8px 20px rgba(0,0,0,.12);width:100%;max-width:860px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;animation:slideUpModal .22s cubic-bezier(.4,0,.2,1)}
+@keyframes slideUpModal{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;padding:22px 26px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-sym{font-family:var(--font-n);font-size:12px;font-weight:600;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
+.modal-name{font-family:var(--font-d);font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:8px}
 .modal-price-row{display:flex;align-items:baseline;gap:10px}
-.modal-price{
-  font-family:var(--font-n);font-size:32px;font-weight:600;
-  letter-spacing:-.02em;color:var(--text);
-}
-.modal-close{
-  background:var(--card2);border:1px solid var(--border);
-  width:32px;height:32px;border-radius:50%;
-  font-size:16px;cursor:pointer;transition:all .15s;
-  display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;
-}
-.modal-close:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
-
-.modal-body{overflow-y:auto;padding:20px 26px 26px;flex:1}
-
-/* Period tabs inside modal */
+.modal-price{font-family:var(--font-n);font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--text)}
+.modal-close{background:rgba(0,0,0,.06);border:none;width:32px;height:32px;border-radius:50%;font-size:15px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0}
+.modal-close:hover{background:var(--red-bg);color:var(--red)}
+.modal-body{overflow-y:auto;padding:20px 26px 28px;flex:1}
 .modal-periods{display:flex;gap:3px;margin-bottom:18px}
-.mpbtn{
-  background:none;border:none;
-  font-family:var(--font-n);font-size:10px;font-weight:500;
-  color:var(--muted);padding:4px 10px;border-radius:10px;
-  cursor:pointer;transition:all .12s;
-}
+.mpbtn{background:none;border:none;font-family:var(--font-n);font-size:10px;font-weight:500;color:var(--muted);padding:4px 10px;border-radius:10px;cursor:pointer;transition:all .12s}
 .mpbtn:hover{color:var(--text)}.mpbtn.on{background:var(--text);color:#fff}
-
-/* Chart in modal */
-.modal-chart-wrap{position:relative;height:240px;margin-bottom:24px}
-
-/* Score card */
+.modal-chart-wrap{position:relative;height:240px;margin-bottom:22px}
 .score-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
-.score-card{
-  background:var(--card2);border:1px solid var(--border);
-  border-radius:var(--r2);padding:16px 18px;
-}
-.score-label{
-  font-family:var(--font-d);font-size:9px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px;
-}
-
-/* Score ring */
+.score-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px}
+.score-label{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px}
 .score-ring-wrap{display:flex;align-items:center;gap:16px}
 .score-ring{position:relative;width:72px;height:72px;flex-shrink:0}
-.score-ring svg{transform:rotate(-90deg)}
-.score-ring-track{fill:none;stroke:var(--border);stroke-width:6}
-.score-ring-fill{fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)}
-.score-ring-num{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:var(--font-n);font-size:17px;font-weight:600;color:var(--text);
-}
-.score-info{}
-.score-verdict{
-  font-family:var(--font-d);font-size:14px;font-weight:800;
-  letter-spacing:-.01em;margin-bottom:4px;
-}
+.score-ring svg{transform:rotate(-90deg);overflow:visible}
+.score-ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-n);font-size:17px;font-weight:600}
+.score-verdict{font-family:var(--font-d);font-size:14px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
 .score-reason{font-size:11px;color:var(--muted);line-height:1.5}
-
-/* KPIs inside modal */
 .modal-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:22px;border:1px solid var(--border)}
 .mkpi{background:var(--card);padding:12px 14px}
-.mkpi-label{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
-.mkpi-val{font-family:var(--font-n);font-size:14px;font-weight:500;color:var(--text)}
-
-/* News */
-.news-title-hd{
-  font-family:var(--font-d);font-size:9px;font-weight:700;
-  text-transform:uppercase;letter-spacing:.12em;color:var(--muted);
-  margin-bottom:12px;display:flex;align-items:center;gap:8px;
-}
-.news-title-hd::after{content:'';flex:1;height:1px;background:var(--border)}
-.news-item{
-  display:flex;flex-direction:column;gap:4px;
-  padding:12px 0;border-bottom:1px solid var(--border);
-}
+.mkpi-l{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
+.mkpi-v{font-family:var(--font-n);font-size:14px;font-weight:500;color:var(--text)}
+.news-hd{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.news-hd::after{content:'';flex:1;height:1px;background:var(--border)}
+.news-item{padding:12px 0;border-bottom:1px solid var(--border)}
 .news-item:last-child{border-bottom:none}
-.news-item-title{
-  font-size:13px;font-weight:500;color:var(--text);
-  line-height:1.45;cursor:pointer;
-}
-.news-item-title:hover{color:var(--blue)}
-.news-item-meta{display:flex;align-items:center;gap:8px}
+.news-ititle{font-size:13px;font-weight:500;color:var(--text);line-height:1.45;text-decoration:none;display:block;margin-bottom:5px}
+.news-ititle:hover{color:var(--blue)}
+.news-imeta{display:flex;align-items:center;gap:8px}
 .news-src{font-family:var(--font-n);font-size:10px;color:var(--muted)}
 .news-date{font-family:var(--font-n);font-size:10px;color:var(--dim)}
-.news-link{font-family:var(--font-d);font-size:10px;font-weight:600;color:var(--blue);text-decoration:none;letter-spacing:.03em}
+.news-link{font-family:var(--font-d);font-size:10px;font-weight:700;color:var(--blue);text-decoration:none;letter-spacing:.03em;margin-left:auto}
 .news-link:hover{text-decoration:underline}
-.loading-pulse{
-  display:flex;align-items:center;gap:8px;
-  font-family:var(--font-d);font-size:11px;font-weight:600;
-  letter-spacing:.04em;color:var(--muted);padding:1.5rem 0;
-}
-.dot1,.dot2,.dot3{
-  width:5px;height:5px;border-radius:50%;background:var(--muted);
-  animation:dotPulse 1.2s infinite ease-in-out;
-}
-.dot2{animation-delay:.2s}.dot3{animation-delay:.4s}
-@keyframes dotPulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.loading-dots{display:flex;align-items:center;gap:6px;padding:1.5rem 0;color:var(--muted);font-family:var(--font-d);font-size:11px;font-weight:600;letter-spacing:.04em}
+.ld{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:ldpulse 1.2s infinite ease-in-out}
+.ld:nth-child(2){animation-delay:.2s}.ld:nth-child(3){animation-delay:.4s}
+@keyframes ldpulse{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 </style>
 </head>
 <body>
+
 <nav class="nav">
   <div class="logo"><div class="logo-mark"><svg viewBox="0 0 14 14" xmlns="http://www.w3.org/2000/svg"><path d="M2 11L7 3L12 11H9.5L7 6.5L4.5 11H2Z"/></svg></div>Lino &middot; Portfolio</div>
   <div class="tabs">
@@ -805,7 +493,41 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 
 <div class="toast" id="toast"></div>
 
+
+
+<!-- WATCH DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-sym" id="m-sym"></div>
+        <div class="modal-name" id="m-name"></div>
+        <div class="modal-price-row">
+          <div class="modal-price" id="m-price"></div>
+          <span class="badge bm" id="m-chg"></span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-periods">
+        <button class="mpbtn" onclick="setMP('1W',this)">1S</button>
+        <button class="mpbtn on" onclick="setMP('1M',this)">1M</button>
+        <button class="mpbtn" onclick="setMP('3M',this)">3M</button>
+        <button class="mpbtn" onclick="setMP('6M',this)">6M</button>
+        <button class="mpbtn" onclick="setMP('1Y',this)">1A</button>
+      </div>
+      <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
+      <div class="modal-kpis" id="m-kpis"></div>
+      <div class="score-grid" id="m-scores"></div>
+      <div class="news-hd">Actualités récentes</div>
+      <div id="m-news"></div>
+    </div>
+  </div>
+</div>
+
 <script>
+
 // ── STATE ──────────────────────────────────────────
 let POS   = JSON.parse(localStorage.getItem('lp_pos')   || '[]');
 let SALES = JSON.parse(localStorage.getItem('lp_sales') || '[]');
@@ -1302,53 +1024,196 @@ setInterval(()=>{
 // ── INIT ───────────────────────────────────────────
 renderDash();
 if(POS.length||WATCH.length) setTimeout(refreshAll,400);
-</script>
 
-<!-- WATCH DETAIL MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" id="modal">
-    <div class="modal-header">
-      <div class="modal-title-block">
-        <div class="modal-sym" id="m-sym">—</div>
-        <div class="modal-name" id="m-name">—</div>
-        <div class="modal-price-row">
-          <div class="modal-price" id="m-price">—</div>
-          <span class="badge bm" id="m-chg">—</span>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeModalDirect()">✕</button>
-    </div>
-    <div class="modal-body">
-      <!-- Periods -->
-      <div class="modal-periods">
-        <button class="mpbtn" onclick="setModalPeriod('1W',this)">1S</button>
-        <button class="mpbtn on" onclick="setModalPeriod('1M',this)">1M</button>
-        <button class="mpbtn" onclick="setModalPeriod('3M',this)">3M</button>
-        <button class="mpbtn" onclick="setModalPeriod('6M',this)">6M</button>
-        <button class="mpbtn" onclick="setModalPeriod('1Y',this)">1A</button>
-      </div>
-      <!-- Chart -->
-      <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
-      <!-- KPIs -->
-      <div class="modal-kpis" id="m-kpis"></div>
-      <!-- Score + Analysis -->
-      <div class="score-grid" id="m-score-grid">
+
+// ════════════════════════════════════════════════
+// MODAL SURVEILLANCE
+// ════════════════════════════════════════════════
+const CLAUDE_KEY = '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';
+let mWatch = null, mPeriod = '1M', mHistory = [];
+
+async function claudeCall(system, user, tokens){
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:tokens||800,system,messages:[{role:'user',content:user}]})
+    });
+    const d = await r.json();
+    return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+  }catch(e){return null;}
+}
+
+function openModal(wid){
+  const w = WATCH.find(x=>x.id===wid);
+  if(!w) return;
+  mWatch = w; mPeriod = '1M'; mHistory = [];
+
+  document.getElementById('m-sym').textContent   = w.ticker;
+  document.getElementById('m-name').textContent  = w.name;
+  document.getElementById('m-price').textContent = w.price>0 ? fmt(w.price) : '—';
+  const chgEl = document.getElementById('m-chg');
+  chgEl.textContent = w.chg!=null ? (w.chg>=0?'+':'')+fmt(Math.abs(w.chg))+'%' : '—';
+  chgEl.className   = 'badge ' + (w.chg>0?'bg':w.chg<0?'br':'bm');
+
+  document.querySelectorAll('.mpbtn').forEach((b,i)=>b.classList.toggle('on',i===1));
+
+  document.getElementById('m-kpis').innerHTML   = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Chargement…</div>';
+  document.getElementById('m-scores').innerHTML = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Analyse Claude en cours…</div>';
+  document.getElementById('m-news').innerHTML   = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Actualités…</div>';
+  killChart('c-modal');
+
+  document.getElementById('modal-overlay').classList.add('on');
+  document.body.style.overflow = 'hidden';
+
+  loadModal(w);
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('on');
+  document.body.style.overflow = '';
+  killChart('c-modal');
+}
+
+function setMP(p, btn){
+  mPeriod = p;
+  document.querySelectorAll('.mpbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  drawMChart();
+}
+
+function sliceMH(h){
+  if(!h?.length) return [];
+  const n={'1W':7,'1M':22,'3M':66,'6M':130,'1Y':252}[mPeriod]||22;
+  return h.slice(-Math.min(n,h.length));
+}
+
+async function loadModal(w){
+  const [priceD, newsD, analysis] = await Promise.all([
+    fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(w.ticker)}?interval=1d&range=6mo`),
+    fetchY(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(w.ticker)}&quotesCount=0&newsCount=8`),
+    claudeCall(
+      'Analyste financier. Réponds UNIQUEMENT en JSON valide sans markdown ni backticks.',
+      `Valeur: ${w.name} (${w.ticker}), prix: ${w.price>0?fmt(w.price):'inconnu'}
+JSON requis:
+{"score":<0-100 risque>,"verdict":"<Faible|Modéré|Élevé|Très élevé>","couleur":"<green|amber|red>","analyse":"<2 phrases>","positifs":["<p1>","<p2>","<p3>"],"negatifs":["<n1>","<n2>"],"reco":"<Acheter|Renforcer|Conserver|Alléger|Éviter>"}`,
+      900
+    )
+  ]);
+
+  // Price + KPIs
+  if(priceD?.chart?.result?.[0]){
+    const res = priceD.chart.result[0];
+    mHistory = (res.indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
+    const m = res.meta||{};
+    document.getElementById('m-kpis').innerHTML = [
+      {l:'+ haut 52 sem.',v:m.fiftyTwoWeekHigh?fmt(m.fiftyTwoWeekHigh):'—'},
+      {l:'+ bas 52 sem.', v:m.fiftyTwoWeekLow ?fmt(m.fiftyTwoWeekLow ):'—'},
+      {l:'Devise',        v:m.currency||'—'   },
+    ].map(k=>`<div class="mkpi"><div class="mkpi-l">${k.l}</div><div class="mkpi-v">${k.v}</div></div>`).join('');
+  } else {
+    document.getElementById('m-kpis').innerHTML = '';
+  }
+  drawMChart();
+
+  // Claude score
+  let scoreHTML = '';
+  if(analysis){
+    try{
+      const a = JSON.parse(analysis.replace(/```json|```/g,'').trim());
+      const sc = a.couleur==='green'?'#16a34a':a.couleur==='amber'?'#d97706':'#dc2626';
+      const C = 2*Math.PI*28;
+      const off = C*(1-Math.min(a.score,100)/100);
+      const recCls = ['Acheter','Renforcer'].includes(a.reco)?'bg':['Alléger','Éviter'].includes(a.reco)?'br':'bm';
+      scoreHTML = `
         <div class="score-card">
           <div class="score-label">Note de risque</div>
-          <div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Analyse en cours…</div>
+          <div class="score-ring-wrap">
+            <div class="score-ring">
+              <svg viewBox="0 0 64 64" width="72" height="72">
+                <circle fill="none" stroke="var(--border)" stroke-width="6" cx="32" cy="32" r="28"/>
+                <circle fill="none" stroke="${sc}" stroke-width="6" stroke-linecap="round"
+                  cx="32" cy="32" r="28"
+                  stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+                  style="transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)"/>
+              </svg>
+              <div class="score-ring-num" style="color:${sc}">${a.score}</div>
+            </div>
+            <div>
+              <div class="score-verdict" style="color:${sc}">${a.verdict}</div>
+              <span class="badge ${recCls}" style="margin-top:6px;display:inline-flex;">${a.reco}</span>
+            </div>
+          </div>
         </div>
         <div class="score-card">
           <div class="score-label">Analyse</div>
-          <div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Chargement…</div>
-        </div>
-      </div>
-      <!-- News -->
-      <div class="news-title-hd">Actualités récentes</div>
-      <div id="m-news">
-        <div class="loading-pulse"><span class="dot1"></span><span class="dot2"></span><span class="dot3"></span> Chargement des actualités…</div>
-      </div>
-    </div>
-  </div>
-</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;">${a.analyse}</div>
+          ${(a.positifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;margin-bottom:3px;"><span style="color:var(--green);font-weight:700;">+</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
+          ${(a.negatifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;margin-bottom:3px;"><span style="color:var(--red);font-weight:700;">−</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
+        </div>`;
+    }catch(e){
+      scoreHTML = `<div class="score-card" style="grid-column:1/-1;"><div class="score-label">Analyse</div><div style="font-size:12px;color:var(--muted);">Analyse temporairement indisponible.</div></div>`;
+    }
+  } else {
+    scoreHTML = `<div class="score-card" style="grid-column:1/-1;"><div class="score-label">Analyse</div><div style="font-size:12px;color:var(--muted);">Clé API requise pour l'analyse.</div></div>`;
+  }
+  document.getElementById('m-scores').innerHTML = scoreHTML;
+
+  // News
+  const news = newsD?.news?.slice(0,6)||[];
+  document.getElementById('m-news').innerHTML = news.length
+    ? news.map(n=>{
+        const d = n.providerPublishTime
+          ? new Date(n.providerPublishTime*1000).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})
+          : '';
+        return `<div class="news-item">
+          <a class="news-ititle" href="${n.link}" target="_blank" rel="noopener">${n.title}</a>
+          <div class="news-imeta">
+            <span class="news-src">${n.publisher||''}</span>
+            <span class="news-date">${d}</span>
+            <a class="news-link" href="${n.link}" target="_blank" rel="noopener">↗ Lire</a>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--muted);font-size:12px;padding:.5rem 0;">Aucune actualité disponible.</div>';
+}
+
+function drawMChart(){
+  killChart('c-modal');
+  const canvas = document.getElementById('c-modal');
+  if(!canvas) return;
+  const h = sliceMH(mHistory).filter(x=>x!=null);
+  if(h.length < 2){
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.clientWidth||700,240);
+    ctx.fillStyle='#9a9a94';ctx.font='13px Inter';ctx.textAlign='center';
+    ctx.fillText('Cliquez Actualiser puis rouvrez pour voir le graphique',(canvas.clientWidth||700)/2,120);
+    return;
+  }
+  const isUp = h[h.length-1]>=h[0];
+  const col  = isUp?'#16a34a':'#dc2626';
+  CH['c-modal'] = new Chart(canvas,{
+    type:'line',
+    data:{labels:h.map(()=>''),datasets:[{
+      data:h,borderColor:col,
+      backgroundColor:isUp?'rgba(22,163,74,0.08)':'rgba(220,38,38,0.07)',
+      fill:true,tension:0.35,pointRadius:0,borderWidth:2,
+    }]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#fff',titleColor:'#0d0d0c',bodyColor:'#3a3a36',borderColor:'#e2e2dc',borderWidth:1,callbacks:{label:c=>' '+fmt(c.raw)}}
+      },
+      scales:{
+        x:{display:false},
+        y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{callback:v=>fmt(v),color:'#7a7a74',font:{size:11}},border:{display:false}}
+      }
+    }
+  });
+}
+
+</script>
 </body>
 </html>
