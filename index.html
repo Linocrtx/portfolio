@@ -346,19 +346,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .mpbtn{background:none;border:none;font-family:var(--font-n);font-size:10px;font-weight:500;color:var(--muted);padding:4px 10px;border-radius:10px;cursor:pointer;transition:all .12s}
 .mpbtn:hover{color:var(--text)}.mpbtn.on{background:var(--text);color:#fff}
 .modal-chart-wrap{position:relative;height:240px;margin-bottom:22px}
-.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
-.score-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:16px 18px}
-.score-label{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:10px}
-.score-ring-wrap{display:flex;align-items:center;gap:16px}
-.score-ring{position:relative;width:72px;height:72px;flex-shrink:0}
-.score-ring svg{transform:rotate(-90deg);overflow:visible}
-.score-ring-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-n);font-size:17px;font-weight:600}
-.score-verdict{font-family:var(--font-d);font-size:14px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
-.score-reason{font-size:11px;color:var(--muted);line-height:1.5}
-.modal-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:22px;border:1px solid var(--border)}
-.mkpi{background:var(--card);padding:12px 14px}
-.mkpi-l{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px}
-.mkpi-v{font-family:var(--font-n);font-size:14px;font-weight:500;color:var(--text)}
 .news-hd{font-family:var(--font-d);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .news-hd::after{content:'';flex:1;height:1px;background:var(--border)}
 .news-item{padding:12px 0;border-bottom:1px solid var(--border)}
@@ -519,7 +506,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
       </div>
       <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
       <div class="modal-kpis" id="m-kpis"></div>
-      <div class="score-grid" id="m-scores"></div>
       <div class="news-hd">Actualités récentes</div>
       <div id="m-news"></div>
     </div>
@@ -602,6 +588,30 @@ async function fetchY(url){
   return null;
 }
 
+// Devises par suffixe de ticker — Yahoo Finance est parfois faux
+function getCurrencyFromTicker(ticker, yahooCurrency){
+  const t = ticker.toUpperCase();
+  // Suffixes européens → EUR
+  if(/\.(PA|BR|AS|MI|DE|BE|LS|MC|VX|ST|OL|HE|CO)$/.test(t)) return 'EUR';
+  // Suffixes UK → GBP (mais côtés en pence, prix / 100)
+  if(/\.L$/.test(t)) return 'GBP';
+  // Suffixes suisses → CHF
+  if(/\.SW$/.test(t)) return 'CHF';
+  // Crypto → toujours USD
+  if(t.endsWith('-USD')) return 'USD';
+  // Matières premières / futures → USD
+  if(t.endsWith('=F') || t.endsWith('=X')) return 'USD';
+  // Japon → JPY
+  if(/\.T$/.test(t)) return 'JPY';
+  // Canada → CAD
+  if(/\.TO$/.test(t)) return 'CAD';
+  // Australie → AUD
+  if(/\.AX$/.test(t)) return 'AUD';
+  // Sinon on fait confiance à Yahoo s'il ne dit pas USD pour un ticker sans suffixe US
+  // (les tickers US purs n'ont pas de suffixe : AAPL, MSFT, etc.)
+  return yahooCurrency || 'USD';
+}
+
 async function getPrice(ticker){
   const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=6mo`;
   const d=await fetchY(url);
@@ -614,7 +624,7 @@ async function getPrice(ticker){
   return{
     price,chg:prev?((price-prev)/prev*100):0,
     name:meta.longName||meta.shortName||ticker,
-    currency:meta.currency||'EUR',
+    currency:getCurrencyFromTicker(ticker, meta.currency),
     history:closes,
     high52:meta.fiftyTwoWeekHigh,low52:meta.fiftyTwoWeekLow,
   };
@@ -1029,20 +1039,8 @@ if(POS.length||WATCH.length) setTimeout(refreshAll,400);
 // ════════════════════════════════════════════════
 // MODAL SURVEILLANCE
 // ════════════════════════════════════════════════
-const CLAUDE_KEY = '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';
 let mWatch = null, mPeriod = '1M', mHistory = [];
 
-async function claudeCall(system, user, tokens){
-  try{
-    const r = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CLAUDE_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:tokens||800,system,messages:[{role:'user',content:user}]})
-    });
-    const d = await r.json();
-    return (d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-  }catch(e){return null;}
-}
 
 function openModal(wid){
   const w = WATCH.find(x=>x.id===wid);
@@ -1059,7 +1057,6 @@ function openModal(wid){
   document.querySelectorAll('.mpbtn').forEach((b,i)=>b.classList.toggle('on',i===1));
 
   document.getElementById('m-kpis').innerHTML   = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Chargement…</div>';
-  document.getElementById('m-scores').innerHTML = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Analyse Claude en cours…</div>';
   document.getElementById('m-news').innerHTML   = '<div class="loading-dots"><span class="ld"></span><span class="ld"></span><span class="ld"></span> Actualités…</div>';
   killChart('c-modal');
 
@@ -1080,6 +1077,22 @@ function setMP(p, btn){
   document.querySelectorAll('.mpbtn').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   drawMChart();
+  updateModalPct();
+}
+
+function updateModalPct(){
+  const h = sliceMH(mHistory).filter(x=>x!=null);
+  const chgEl = document.getElementById('m-chg');
+  if(h.length >= 2){
+    const pct = (h[h.length-1] - h[0]) / h[0] * 100;
+    chgEl.textContent = (pct>=0?'+':'') + fmt(Math.abs(pct)) + '%';
+    chgEl.className   = 'badge ' + (pct>=0?'bg':'br');
+  } else if(mWatch){
+    // Fallback: use the 1-day chg
+    const c = mWatch.chg;
+    chgEl.textContent = c!=null ? (c>=0?'+':'')+fmt(Math.abs(c))+'%' : '—';
+    chgEl.className   = 'badge ' + (c>0?'bg':c<0?'br':'bm');
+  }
 }
 
 function sliceMH(h){
@@ -1089,75 +1102,26 @@ function sliceMH(h){
 }
 
 async function loadModal(w){
-  const [priceD, newsD, analysis] = await Promise.all([
+  const [priceD, newsD] = await Promise.all([
     fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(w.ticker)}?interval=1d&range=6mo`),
     fetchY(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(w.ticker)}&quotesCount=0&newsCount=8`),
-    claudeCall(
-      'Analyste financier. Réponds UNIQUEMENT en JSON valide sans markdown ni backticks.',
-      `Valeur: ${w.name} (${w.ticker}), prix: ${w.price>0?fmt(w.price):'inconnu'}
-JSON requis:
-{"score":<0-100 risque>,"verdict":"<Faible|Modéré|Élevé|Très élevé>","couleur":"<green|amber|red>","analyse":"<2 phrases>","positifs":["<p1>","<p2>","<p3>"],"negatifs":["<n1>","<n2>"],"reco":"<Acheter|Renforcer|Conserver|Alléger|Éviter>"}`,
-      900
-    )
   ]);
 
-  // Price + KPIs
+  // Price history + KPIs
   if(priceD?.chart?.result?.[0]){
     const res = priceD.chart.result[0];
     mHistory = (res.indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
     const m = res.meta||{};
     document.getElementById('m-kpis').innerHTML = [
-      {l:'+ haut 52 sem.',v:m.fiftyTwoWeekHigh?fmt(m.fiftyTwoWeekHigh):'—'},
-      {l:'+ bas 52 sem.', v:m.fiftyTwoWeekLow ?fmt(m.fiftyTwoWeekLow ):'—'},
-      {l:'Devise',        v:m.currency||'—'   },
+      {l:'+ haut 52 sem.', v: m.fiftyTwoWeekHigh ? fmt(m.fiftyTwoWeekHigh) : '—'},
+      {l:'+ bas 52 sem.',  v: m.fiftyTwoWeekLow  ? fmt(m.fiftyTwoWeekLow)  : '—'},
+      {l:'Devise',         v: getCurrencyFromTicker(w.ticker, m.currency)},
     ].map(k=>`<div class="mkpi"><div class="mkpi-l">${k.l}</div><div class="mkpi-v">${k.v}</div></div>`).join('');
   } else {
-    document.getElementById('m-kpis').innerHTML = '';
+    document.getElementById('m-kpis').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:.5rem 0;grid-column:1/-1;">Données indisponibles — clique Actualiser</div>';
   }
   drawMChart();
-
-  // Claude score
-  let scoreHTML = '';
-  if(analysis){
-    try{
-      const a = JSON.parse(analysis.replace(/```json|```/g,'').trim());
-      const sc = a.couleur==='green'?'#16a34a':a.couleur==='amber'?'#d97706':'#dc2626';
-      const C = 2*Math.PI*28;
-      const off = C*(1-Math.min(a.score,100)/100);
-      const recCls = ['Acheter','Renforcer'].includes(a.reco)?'bg':['Alléger','Éviter'].includes(a.reco)?'br':'bm';
-      scoreHTML = `
-        <div class="score-card">
-          <div class="score-label">Note de risque</div>
-          <div class="score-ring-wrap">
-            <div class="score-ring">
-              <svg viewBox="0 0 64 64" width="72" height="72">
-                <circle fill="none" stroke="var(--border)" stroke-width="6" cx="32" cy="32" r="28"/>
-                <circle fill="none" stroke="${sc}" stroke-width="6" stroke-linecap="round"
-                  cx="32" cy="32" r="28"
-                  stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
-                  style="transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)"/>
-              </svg>
-              <div class="score-ring-num" style="color:${sc}">${a.score}</div>
-            </div>
-            <div>
-              <div class="score-verdict" style="color:${sc}">${a.verdict}</div>
-              <span class="badge ${recCls}" style="margin-top:6px;display:inline-flex;">${a.reco}</span>
-            </div>
-          </div>
-        </div>
-        <div class="score-card">
-          <div class="score-label">Analyse</div>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px;">${a.analyse}</div>
-          ${(a.positifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;margin-bottom:3px;"><span style="color:var(--green);font-weight:700;">+</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
-          ${(a.negatifs||[]).map(p=>`<div style="display:flex;gap:6px;font-size:11px;margin-bottom:3px;"><span style="color:var(--red);font-weight:700;">−</span><span style="color:var(--text2);">${p}</span></div>`).join('')}
-        </div>`;
-    }catch(e){
-      scoreHTML = `<div class="score-card" style="grid-column:1/-1;"><div class="score-label">Analyse</div><div style="font-size:12px;color:var(--muted);">Analyse temporairement indisponible.</div></div>`;
-    }
-  } else {
-    scoreHTML = `<div class="score-card" style="grid-column:1/-1;"><div class="score-label">Analyse</div><div style="font-size:12px;color:var(--muted);">Clé API requise pour l'analyse.</div></div>`;
-  }
-  document.getElementById('m-scores').innerHTML = scoreHTML;
+  updateModalPct();
 
   // News
   const news = newsD?.news?.slice(0,6)||[];
