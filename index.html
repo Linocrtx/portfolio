@@ -416,6 +416,36 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .ld{width:4px;height:4px;border-radius:50%;background:var(--muted);animation:ldp 1.2s infinite ease-in-out}
 .ld:nth-child(2){animation-delay:.2s}.ld:nth-child(3){animation-delay:.4s}
 @keyframes ldp{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+
+.pc-icon-logo{
+  background:#fff !important;
+  border:1px solid var(--border);
+  padding:4px;
+  display:flex;align-items:center;justify-content:center;
+}
+.pc-icon-logo img{
+  width:26px;height:26px;
+  object-fit:contain;border-radius:4px;
+  display:block;
+}
+.pc-icon{
+  font-size:12px;font-weight:700;
+  letter-spacing:-.02em;
+}
+
+/* ── Logo icons ── */
+.pc-logo{
+  background:#fff !important;
+  border:1px solid var(--border) !important;
+  color:inherit !important;
+  padding:5px !important;
+}
+.pc-logo img{
+  width:26px;height:26px;
+  object-fit:contain;border-radius:3px;
+  display:block;
+}
 </style>
 </head>
 <body>
@@ -568,6 +598,58 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 </div>
 
 <script>
+
+
+// ── LOGOS via Clearbit ──────────────────────────────
+const LOGO_DOMAINS = {
+  'AI.PA':'airliquide.com','AIR.PA':'airbus.com','BN.PA':'danone.com',
+  'BNP.PA':'bnpparibas.com','CAP.PA':'capgemini.com','CS.PA':'axa.com',
+  'DG.PA':'vinci.com','ENGI.PA':'engie.com','GLE.PA':'societegenerale.com',
+  'HO.PA':'thalesgroup.com','KER.PA':'kering.com','LR.PA':'legrand.com',
+  'MC.PA':'lvmh.com','ML.PA':'michelin.com','OR.PA':'loreal.com',
+  'ORA.PA':'orange.com','PUB.PA':'publicisgroupe.com','RI.PA':'pernod-ricard.com',
+  'RMS.PA':'hermes.com','RNO.PA':'renault.com','SAF.PA':'safran.com',
+  'SAN.PA':'sanofi.com','SGO.PA':'saint-gobain.com','STM.PA':'st.com',
+  'SU.PA':'se.com','TTE.PA':'totalenergies.com','VIE.PA':'veolia.com',
+  'DSY.PA':'3ds.com','EL.PA':'essilorluxottica.com','ACA.PA':'credit-agricole.com',
+  'CA.PA':'carrefour.com','ALMDT.PA':'mediantechnologies.com',
+  'SAP.DE':'sap.com','BMW.DE':'bmw.com','SIE.DE':'siemens.com',
+  'ALV.DE':'allianz.com','BAYN.DE':'bayer.com','ADS.DE':'adidas.com',
+  'VOW3.DE':'volkswagen.com','DTE.DE':'telekom.com','BASF.DE':'basf.com',
+  'ASML.AS':'asml.com','PHIA.AS':'philips.com','ING.AS':'ing.com',
+  'NESN.SW':'nestle.com','ROG.SW':'roche.com','NOVN.SW':'novartis.com',
+  'AZN.L':'astrazeneca.com','SHEL.L':'shell.com','ULVR.L':'unilever.com',
+  'BP.L':'bp.com','HSBA.L':'hsbc.com','GSK.L':'gsk.com','RIO.L':'riotinto.com',
+  'AAPL':'apple.com','MSFT':'microsoft.com','GOOGL':'google.com',
+  'GOOG':'google.com','AMZN':'amazon.com','NVDA':'nvidia.com',
+  'META':'meta.com','TSLA':'tesla.com','JPM':'jpmorganchase.com',
+  'V':'visa.com','JNJ':'jnj.com','WMT':'walmart.com','MA':'mastercard.com',
+  'AVGO':'broadcom.com','AMD':'amd.com','NFLX':'netflix.com',
+  'DIS':'disney.com','INTC':'intel.com','CRM':'salesforce.com',
+  'ORCL':'oracle.com','CSCO':'cisco.com','BA':'boeing.com',
+  'GS':'goldmansachs.com','MS':'morganstanley.com','BAC':'bankofamerica.com',
+  'UBER':'uber.com','COIN':'coinbase.com','PLTR':'palantir.com',
+  'ARM':'arm.com','SPOT':'spotify.com','SHOP':'shopify.com',
+  'ABNB':'airbnb.com','PYPL':'paypal.com','SBUX':'starbucks.com',
+  'NKE':'nike.com','KO':'coca-cola.com','PEP':'pepsico.com',
+  'MCD':'mcdonalds.com','PG':'pg.com','XOM':'exxonmobil.com',
+  'CVX':'chevron.com','HD':'homedepot.com','ABBV':'abbvie.com',
+  'MRK':'merck.com','LLY':'lilly.com','TMO':'thermofisher.com',
+  'UNH':'unitedhealthgroup.com','COST':'costco.com','ADBE':'adobe.com',
+  'QCOM':'qualcomm.com','TXN':'ti.com','AMAT':'appliedmaterials.com',
+  'PANW':'paloaltonetworks.com','CRWD':'crowdstrike.com',
+  '7974.T':'nintendo.com','7203.T':'toyota.com','6758.T':'sony.com',
+  '9984.T':'softbank.jp','7267.T':'honda.com','6861.T':'keyence.com',
+  'BTC-USD':'bitcoin.org','ETH-USD':'ethereum.org',
+  'BNB-USD':'bnbchain.org','SOL-USD':'solana.com','XRP-USD':'ripple.com',
+  'DOGE-USD':'dogecoin.com','ADA-USD':'cardano.org',
+};
+
+function getLogo(ticker){
+  const domain = LOGO_DOMAINS[ticker];
+  if(!domain) return null;
+  return `https://logo.clearbit.com/${domain}`;
+}
 
 // ── STATE ──────────────────────────────────────────
 let POS   = JSON.parse(localStorage.getItem('lp_pos')   || '[]');
@@ -787,20 +869,25 @@ const sy = () => '€'; // Tout en EUR
 
 async function fetchRates(){
   try{
-    // EUR/USD inverse = USD/EUR
-    const pairs = ['EURUSD=X','EURGBP=X','EURCHF=X','EURJPY=X','EURCAD=X','EURAUD=X'];
-    const results = await Promise.allSettled(pairs.map(p =>
-      fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${p}?interval=1d&range=1d`)
-    ));
-    const symbols = ['USD','GBP','CHF','JPY','CAD','AUD'];
-    results.forEach((r, i) => {
-      if(r.status==='fulfilled' && r.value?.chart?.result?.[0]?.meta){
-        const rate = r.value.chart.result[0].meta.regularMarketPrice;
-        if(rate > 0) RATES[symbols[i]] = parseFloat((1/rate).toFixed(6));
-      }
+    // API sans CORS, gratuite, pas de proxy nécessaire
+    const r = await fetch('https://open.er-api.com/v6/latest/EUR', {
+      signal: AbortSignal.timeout(5000)
     });
-    console.log('Taux EUR:', RATES);
-  } catch(e){ console.warn('Taux non récupérés, utilisation des taux par défaut'); }
+    if(!r.ok) throw new Error('API taux indisponible');
+    const d = await r.json();
+    if(d.result !== 'success') throw new Error('Taux invalides');
+    const supported = ['USD','GBP','CHF','JPY','CAD','AUD','HKD'];
+    supported.forEach(c => {
+      if(d.rates[c]) RATES[c] = parseFloat((1/d.rates[c]).toFixed(6));
+    });
+    console.log('Taux EUR mis à jour:', Object.fromEntries(
+      Object.entries(RATES).filter(([k])=>k!=='EUR')
+    ));
+  } catch(e){
+    console.warn('Taux non récupérés, taux par défaut utilisés:', e.message);
+    // Taux de secours raisonnables
+    Object.assign(RATES, {USD:0.924,GBP:1.162,CHF:1.052,JPY:0.0062,CAD:0.681,AUD:0.591,HKD:0.118});
+  }
 }
 const cl=n=>n>0?'mg':n<0?'mr':'mm';
 const sg=n=>n>=0?'+':'';
@@ -943,8 +1030,12 @@ function renderPosCards(){
     const init=p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
     const chgBg=pct>0?'var(--green-bg)':pct<0?'var(--red-bg)':'var(--bg)';
     const chgFg=pct>0?'var(--green)':pct<0?'var(--red)':'var(--muted)';
+    const pLogo=getLogo(p.ticker);
+    const pIcon=pLogo
+      ?`<div class="pc-icon pc-logo"><img src="${pLogo}" alt="${init}" loading="lazy" onerror="this.closest('.pc-icon').classList.remove('pc-logo');this.closest('.pc-icon').style.background='${cc.bg}';this.closest('.pc-icon').style.color='${cc.fg}';this.closest('.pc-icon').textContent='${init}'"></div>`
+      :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
     return`<div class="pos-card">
-      <div class="pc-top"><div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>
+      <div class="pc-top">${pIcon}
       <span class="badge" style="background:${chgBg};color:${chgFg};border-color:transparent;">${sg(pct)}${fmt(Math.abs(pct))}%</span></div>
       <div class="pc-name">${p.name}</div><div class="pc-ticker">${p.ticker}</div>
       <div class="pc-spark"><canvas id="sp-${p.id}" width="180" height="36"></canvas></div>
@@ -1044,8 +1135,12 @@ function renderWatchGrid(){
     const chgStr=w.chg!=null?(sg(w.chg)+fmt(Math.abs(w.chg))+'%'):'\u2014';
     const cc=CC[i%CC.length];
     const init=w.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
+    const wLogo=getLogo(w.ticker);
+    const wIcon=wLogo
+      ?`<div class="pc-icon pc-logo"><img src="${wLogo}" alt="${init}" loading="lazy" onerror="this.closest('.pc-icon').classList.remove('pc-logo');this.closest('.pc-icon').style.background='${cc.bg}';this.closest('.pc-icon').style.color='${cc.fg}';this.closest('.pc-icon').textContent='${init}'"></div>`
+      :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
     return`<div class="pos-card" onclick="openModal(${w.id})" style="cursor:pointer;" title="Cliquez pour le détail">
-      <div class="pc-top"><div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>
+      <div class="pc-top">${wIcon}
       <div style="display:flex;gap:6px;align-items:center;">
         <span class="badge" style="background:${chgBg};color:${chgFg};border-color:transparent;">${chgStr}</span>
         <button class="del-btn" onclick="event.stopPropagation();delWatch(${w.id})">&#10005;</button>
