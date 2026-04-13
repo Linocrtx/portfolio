@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -468,38 +467,22 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .btn-edit{background:none;border:none;color:var(--dim);cursor:pointer;padding:4px 6px;border-radius:var(--r);font-size:13px;transition:all .12s;margin-right:2px}
 .btn-edit:hover{color:var(--blue)}
 
-/* ── LIVRETS ── */
-.livrets-bar{display:flex;gap:10px;margin-bottom:1.5rem;flex-wrap:wrap}
-.livret-pill{
-  display:flex;align-items:center;gap:8px;
-  background:var(--card);border:1px solid var(--border);
-  border-radius:var(--r2);padding:10px 14px;
-  cursor:pointer;transition:all .15s;box-shadow:var(--sh);
-  min-width:160px;
-}
-.livret-pill:hover{border-color:var(--border2);box-shadow:var(--sh2)}
-.livret-pill.editing{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.1)}
-.livret-icon{font-size:16px;flex-shrink:0}
-.livret-info{flex:1;min-width:0}
-.livret-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px}
-.livret-val{font-size:15px;font-weight:500;color:var(--text);letter-spacing:-.3px}
-.livret-edit{display:none;align-items:center;gap:6px;margin-top:6px}
-.livret-pill.editing .livret-edit{display:flex}
-.livret-pill.editing .livret-val{display:none}
-.livret-input{
-  background:var(--card2);border:1px solid var(--border);
-  color:var(--text);font-family:var(--font);font-size:13px;
-  padding:5px 8px;border-radius:var(--r);width:100px;
-}
-.livret-input:focus{outline:none;border-color:var(--blue);background:#fff}
-.livret-ok{background:var(--text);color:#fff;border:none;border-radius:var(--r);padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font)}
-.livret-ok:hover{opacity:.85}
-.livrets-total{
-  display:flex;align-items:center;gap:8px;
-  background:var(--green-bg);border:1px solid var(--green-bd);
-  border-radius:var(--r2);padding:10px 14px;
-  font-size:12px;font-weight:500;color:var(--green);
-}
+/* ÉPARGNE */
+.ep-wrap{max-width:520px;margin:0 auto}
+.ep-total{background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r2);padding:16px 20px;margin-bottom:20px;display:none}
+.ep-total-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:4px}
+.ep-total-val{font-size:22px;font-weight:400;letter-spacing:-.5px;color:var(--green)}
+.ep-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);padding:22px;margin-bottom:14px;box-shadow:var(--sh)}
+.ep-icon{font-size:22px;margin-bottom:10px}
+.ep-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px}
+.ep-val{font-size:26px;font-weight:400;letter-spacing:-.5px;color:var(--text);margin-bottom:14px}
+.ep-row{display:flex;gap:8px}
+.ep-input{flex:1;background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r);transition:border .12s}
+.ep-input:focus{outline:none;border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.ep-btn{background:var(--text);color:#fff;border:none;border-radius:var(--r);padding:9px 18px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.ep-btn:hover{opacity:.85}
+.ep-hint{font-size:11px;color:var(--muted);margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -516,6 +499,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <span class="nav-time" id="nav-time"></span>
     <button class="btn-ref" onclick="refreshAll()">&#8635; Actualiser</button>
   </div>
+  <button class="tab-btn" onclick="goPage('epargne',this)">Épargne</button>
 </nav>
 
 <!-- DASHBOARD -->
@@ -530,38 +514,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     </div>
   </div>
   <div class="metrics" id="metrics"></div>
-
-  <!-- Livrets -->
-  <div class="livrets-bar" id="livrets-bar">
-    <div class="livret-pill" id="pill-la" onclick="toggleLivret('la')">
-      <span class="livret-icon">🏦</span>
-      <div class="livret-info">
-        <div class="livret-label">Livret A</div>
-        <div class="livret-val" id="la-val">€0</div>
-        <div class="livret-edit">
-          <input class="livret-input" id="la-input" type="number" placeholder="0" min="0" step="1"
-            onkeydown="if(event.key==='Enter')saveLivret('la')">
-          <button class="livret-ok" onclick="saveLivret('la')">OK</button>
-        </div>
-      </div>
-    </div>
-    <div class="livret-pill" id="pill-lj" onclick="toggleLivret('lj')">
-      <span class="livret-icon">🐥</span>
-      <div class="livret-info">
-        <div class="livret-label">Livret Jeune</div>
-        <div class="livret-val" id="lj-val">€0</div>
-        <div class="livret-edit">
-          <input class="livret-input" id="lj-input" type="number" placeholder="0" min="0" step="1"
-            onkeydown="if(event.key==='Enter')saveLivret('lj')">
-          <button class="livret-ok" onclick="saveLivret('lj')">OK</button>
-        </div>
-      </div>
-    </div>
-    <div class="livrets-total" id="livrets-total" style="display:none;">
-      <span>💰</span>
-      <span>Épargne totale : <strong id="livrets-total-val">€0</strong></span>
-    </div>
-  </div>
   <div class="card" style="margin-bottom:16px;">
     <div class="card-hd"><span>Evolution du patrimoine</span><div class="pbtns" style="margin-left:auto;">
         <button class="pbtn" onclick="setPer('1W',this)">1S</button>
@@ -621,7 +573,75 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
       <div class="fg"><label>Nom</label><input id="s-n" placeholder="ex: Air Liquide"></div>
       <div class="fg"><label>Date de vente</label><input id="s-d" type="date"></div>
       <div class="fg"><label>PRU d'achat</label><input id="s-p" type="number" placeholder="0.00" step="0.01"></div>
-      <div class="
+      <div class="fg"><label>Prix de vente</label><input id="s-v" type="number" placeholder="0.00" step="0.01"></div>
+      <div class="fg"><label>Quantite</label><input id="s-q" type="number" placeholder="1" step="any"></div>
+      <div class="fg"><label>Devise</label><select id="s-c"><option value="EUR">EUR</option><option value="USD">USD</option></select></div>
+    </div>
+    <button class="btn-p" onclick="addSale()">+ Enregistrer la vente</button>
+  </div>
+  <div class="sec-t">Historique des ventes</div>
+  <div class="tw" id="sale-tbl"></div>
+</div>
+
+<!-- SURVEILLANCE -->
+<div class="page" id="page-watch">
+  <div class="fc">
+    <div class="ft">Surveiller une valeur</div>
+    <div class="acw">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="wac-in" class="ac-in" placeholder="Cherche une valeur..." autocomplete="off" oninput="wacSearch(this.value)" style="flex:1;">
+        <button class="btn-p" onclick="addWatch()">+ Surveiller</button>
+      </div>
+      <div class="ac-dd" id="wac-dd"></div>
+      <div class="sel-pill" id="wac-pill" style="margin-top:8px;">
+        <span class="sp-sym" id="wac-sym"></span>
+        <span class="sp-name" id="wac-nm"></span>
+        <span style="font-size:11px;color:var(--green);font-weight:600;margin-left:auto;">&#10003; Selectionne</span>
+        <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;" onclick="clearWac()">&#10005;</button>
+      </div>
+    </div>
+  </div>
+  <div class="pos-grid" id="watch-grid"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+
+<!-- WATCH DETAIL MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-sym" id="m-sym"></div>
+        <div class="modal-name" id="m-name"></div>
+        <div class="modal-price-row">
+          <div class="modal-price" id="m-price"></div>
+          <span class="badge bm" id="m-chg"></span>
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-periods">
+        <button class="mpbtn" onclick="setMP('1W',this)">1S</button>
+        <button class="mpbtn on" onclick="setMP('1M',this)">1M</button>
+        <button class="mpbtn" onclick="setMP('3M',this)">3M</button>
+        <button class="mpbtn" onclick="setMP('6M',this)">6M</button>
+        <button class="mpbtn" onclick="setMP('1Y',this)">1A</button>
+        <button class="mpbtn" onclick="setMP('YTD',this)">YTD</button>
+        <button class="mpbtn" onclick="setMP('3Y',this)">3A</button>
+        <button class="mpbtn" onclick="setMP('5Y',this)">5A</button>
+      </div>
+      <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
+      <div class="modal-kpis" id="m-kpis"></div>
+      <div class="news-hd">Actualités récentes</div>
+      <div id="m-news"></div>
+    </div>
+  </div>
+</div>
+
+<script>
 
 
 // ── LOGOS via Clearbit ──────────────────────────────
@@ -992,7 +1012,7 @@ function renderDash(){
   const total=lat+realPnl;
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
 
-  document.getElementById('h-val').innerHTML=fmt(val+(LIVRETS.la||0)+(LIVRETS.lj||0))+' <span class="cur">\u20AC</span>';
+  document.getElementById('h-val').innerHTML=fmt(val+(EP&&EP.la||0)+(EP&&EP.lj||0))+' <span class="cur">\u20AC</span>';
   const pvEl=document.getElementById('h-pv');
   pvEl.textContent=(lat>=0?'+\u20AC':'-\u20AC')+fmt(Math.abs(lat));
   pvEl.className='badge '+(lat>=0?'bg':'br');
@@ -1319,6 +1339,7 @@ function goPage(id,btn){
   if(id==='achats')renderPosTable();
   if(id==='ventes')renderSaleTable();
   if(id==='watch')renderWatchGrid();
+  if(id==='epargne')renderEpargne();
 }
 
 setInterval(()=>{
@@ -1329,9 +1350,9 @@ setInterval(()=>{
 // ── INIT ───────────────────────────────────────────
 renderDash();
 fetchRates().then(()=>{
-  renderLivrets();
-if(POS.length||WATCH.length) setTimeout(refreshAll,400);
+  if(POS.length||WATCH.length) setTimeout(refreshAll,400);
   else renderDash();
+  renderEpargne();
 });
 
 
@@ -1556,125 +1577,25 @@ function saveEdit(){
   }
 }
 
-
-// ════════════════════════════════════════════
-// LIVRETS A & JEUNE
-// ════════════════════════════════════════════
-let LIVRETS = JSON.parse(localStorage.getItem('lp_livrets') || '{"la":0,"lj":0}');
-
-function saveLivrets(){ localStorage.setItem('lp_livrets', JSON.stringify(LIVRETS)); }
-
-function renderLivrets(){
-  const la = LIVRETS.la||0, lj = LIVRETS.lj||0, tot = la+lj;
-  document.getElementById('la-val').textContent = '€' + la.toLocaleString('fr-FR');
-  document.getElementById('lj-val').textContent = '€' + lj.toLocaleString('fr-FR');
-  const totEl = document.getElementById('livrets-total');
-  if(tot > 0){
-    totEl.style.display = 'flex';
-    document.getElementById('livrets-total-val').textContent = '€' + tot.toLocaleString('fr-FR');
-  } else {
-    totEl.style.display = 'none';
-  }
-  // Update hero val to include livrets
-  updateHeroVal();
+// ═══ ÉPARGNE ═══════════════════════════════
+let EP = JSON.parse(localStorage.getItem('lp_ep')||'{"la":0,"lj":0}');
+function saveEpStorage(){localStorage.setItem('lp_ep',JSON.stringify(EP));}
+function renderEpargne(){
+  var la=EP.la||0,lj=EP.lj||0,tot=la+lj,e;
+  e=document.getElementById('la-val');   if(e)e.textContent='€'+la.toLocaleString('fr-FR');
+  e=document.getElementById('lj-val');   if(e)e.textContent='€'+lj.toLocaleString('fr-FR');
+  e=document.getElementById('la-input'); if(e&&la>0)e.value=la;
+  e=document.getElementById('lj-input'); if(e&&lj>0)e.value=lj;
+  e=document.getElementById('ep-total'); if(e)e.style.display=tot>0?'block':'none';
+  e=document.getElementById('ep-total-val');if(e)e.textContent='€'+tot.toLocaleString('fr-FR');
 }
-
-function updateHeroVal(){
-  let val=0;
-  POS.forEach(p=>{ val+=p.price*p.qty*rt(p.currency||'EUR'); });
-  const tot = val + (LIVRETS.la||0) + (LIVRETS.lj||0);
-  const hv = document.getElementById('h-val');
-  if(hv) hv.innerHTML = fmt(tot) + ' <span class="cur">€</span>';
-}
-
-function toggleLivret(id){
-  const pill = document.getElementById('pill-'+id);
-  const isEditing = pill.classList.contains('editing');
-  // Close all
-  document.querySelectorAll('.livret-pill').forEach(p=>p.classList.remove('editing'));
-  if(!isEditing){
-    pill.classList.add('editing');
-    const input = document.getElementById(id+'-input');
-    input.value = LIVRETS[id]||0;
-    setTimeout(()=>input.focus(), 50);
-  }
-}
-
-function saveLivret(id){
-  const val = parseFloat(document.getElementById(id+'-input').value)||0;
-  LIVRETS[id] = Math.max(0, val);
-  saveLivrets();
-  document.getElementById('pill-'+id).classList.remove('editing');
-  renderLivrets();
-  toast('Livret mis à jour ✓', 'tok');
-}
-
-// Close on outside click
-document.addEventListener('click', e=>{
-  if(!e.target.closest('.livret-pill')){
-    document.querySelectorAll('.livret-pill').forEach(p=>p.classList.remove('editing'));
-  }
-});
-pe="date" value="${p.date}"></div>
-    <div class="edit-fg"><label>PRU</label><input id="ef-pru" type="number" step="0.01" value="${p.pru}"></div>
-    <div class="edit-fg"><label>Quantité</label><input id="ef-qty" type="number" step="any" value="${p.qty}"></div>
-    <div class="edit-fg"><label>Devise</label><select id="ef-cur">
-      <option value="EUR" ${(p.currency||'EUR')==='EUR'?'selected':''}>EUR</option>
-      <option value="USD" ${p.currency==='USD'?'selected':''}>USD</option>
-    </select></div>`;
-  document.getElementById('edit-overlay').classList.add('on');
-  document.body.style.overflow='hidden';
-}
-
-function openEditSale(id){
-  const s=SALES.find(x=>x.id===id);if(!s)return;
-  _et='sale';_eid=id;
-  document.getElementById('edit-title').textContent='Modifier vente — '+s.ticker;
-  document.getElementById('edit-fields').innerHTML=`
-    <div class="edit-fg full"><label>Nom</label><input id="ef-name" value="${s.name}"></div>
-    <div class="edit-fg"><label>Date de vente</label><input id="ef-date" type="date" value="${s.date}"></div>
-    <div class="edit-fg"><label>PRU achat</label><input id="ef-pru" type="number" step="0.01" value="${s.pru}"></div>
-    <div class="edit-fg"><label>Prix de vente</label><input id="ef-sell" type="number" step="0.01" value="${s.sell}"></div>
-    <div class="edit-fg"><label>Quantité</label><input id="ef-qty" type="number" step="any" value="${s.qty}"></div>
-    <div class="edit-fg"><label>Devise</label><select id="ef-cur">
-      <option value="EUR" ${(s.currency||'EUR')==='EUR'?'selected':''}>EUR</option>
-      <option value="USD" ${s.currency==='USD'?'selected':''}>USD</option>
-    </select></div>`;
-  document.getElementById('edit-overlay').classList.add('on');
-  document.body.style.overflow='hidden';
-}
-
-function closeEdit(){
-  document.getElementById('edit-overlay').classList.remove('on');
-  document.body.style.overflow='';
-  _et=null;_eid=null;
-}
-
-function gef(id){return(document.getElementById(id)?.value||'').trim();}
-
-function saveEdit(){
-  if(_et==='pos'){
-    const p=POS.find(x=>x.id===_eid);if(!p)return;
-    const pru=parseFloat(gef('ef-pru')),qty=parseFloat(gef('ef-qty'));
-    if(isNaN(pru)||isNaN(qty)){toast('Valeurs invalides','ter');return;}
-    p.name=gef('ef-name')||p.name;
-    p.date=gef('ef-date')||p.date;
-    p.pru=pru;p.qty=qty;
-    p.currency=gef('ef-cur')||p.currency;
-    save();closeEdit();renderPosTable();renderDash();
-    toast('Achat mis à jour ✓','tok');
-  } else if(_et==='sale'){
-    const s=SALES.find(x=>x.id===_eid);if(!s)return;
-    const pru=parseFloat(gef('ef-pru')),sell=parseFloat(gef('ef-sell')),qty=parseFloat(gef('ef-qty'));
-    if(isNaN(pru)||isNaN(sell)||isNaN(qty)){toast('Valeurs invalides','ter');return;}
-    s.name=gef('ef-name')||s.name;
-    s.date=gef('ef-date')||s.date;
-    s.pru=pru;s.sell=sell;s.qty=qty;
-    s.currency=gef('ef-cur')||s.currency;
-    s.pnl=(s.sell-s.pru)*s.qty;
-    save();closeEdit();renderSaleTable();renderDash();
-    toast('Vente mise à jour ✓','tok');
-  }
+function saveEp(id){
+  var v=parseFloat(document.getElementById(id+'-input').value)||0;
+  EP[id]=Math.max(0,v);
+  saveEpStorage();
+  renderEpargne();
+  renderDash();
+  toast('Enregistré ✓','tok');
 }
 </script>
 
@@ -1686,6 +1607,34 @@ function saveEdit(){
     <div class="edit-actions">
       <button class="btn-cancel" onclick="closeEdit()">Annuler</button>
       <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+<div class="page" id="page-epargne">
+  <div class="ep-wrap">
+    <div class="ep-total" id="ep-total">
+      <div class="ep-total-lbl">Épargne totale</div>
+      <div class="ep-total-val" id="ep-total-val">€0</div>
+    </div>
+    <div class="ep-card">
+      <div class="ep-icon">🏦</div>
+      <div class="ep-lbl">Livret A</div>
+      <div class="ep-val" id="la-val">€0</div>
+      <div class="ep-row">
+        <input class="ep-input" id="la-input" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveEp('la')">
+        <button class="ep-btn" onclick="saveEp('la')">Enregistrer</button>
+      </div>
+      <div class="ep-hint">Taux : 2.4 % &middot; Plafond : 22 950 €</div>
+    </div>
+    <div class="ep-card">
+      <div class="ep-icon">🐥</div>
+      <div class="ep-lbl">Livret Jeune</div>
+      <div class="ep-val" id="lj-val">€0</div>
+      <div class="ep-row">
+        <input class="ep-input" id="lj-input" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveEp('lj')">
+        <button class="ep-btn" onclick="saveEp('lj')">Enregistrer</button>
+      </div>
+      <div class="ep-hint">Taux : 3 % &middot; Plafond : 1 600 €</div>
     </div>
   </div>
 </div>
