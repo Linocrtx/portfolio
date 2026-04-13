@@ -1030,10 +1030,10 @@ function renderMainChart(){
     ctx.fillText('Ajoutez des positions pour voir la courbe',canvas.width/2,100);return;
   }
 
-  // Date du premier achat
+  // Premier achat
   const firstPurchase = POS.map(p=>new Date(p.date)).reduce((a,b)=>a<b?a:b);
 
-  // Position de référence = celle avec le plus de timestamps
+  // Timeline de référence = position avec le plus de timestamps
   const refPos = POS.reduce((a,b)=>(b.timestamps?.length||0)>(a.timestamps?.length||0)?b:a);
   const refTs  = refPos.timestamps||[];
 
@@ -1043,17 +1043,14 @@ function renderMainChart(){
     ctx.fillText('Cliquez \u21BB Actualiser pour charger l\u2019historique',canvas.width/2,100);return;
   }
 
-  // Période sélectionnée
+  // Période
   const now = Date.now()/1000;
   const periodDays={'1W':7,'1M':30,'3M':90,'6M':183,'1Y':365,'3Y':1095,'5Y':1825}[PERIOD]||30;
   const periodStart = PERIOD==='YTD'
     ? new Date(new Date().getFullYear(),0,1).getTime()/1000
     : now - periodDays*86400;
 
-  // Le graphique commence au MAX(premier achat, début période)
   const chartStartTs = Math.max(firstPurchase.getTime()/1000, periodStart);
-
-  // Indices valides dans la timeline de référence
   const validIdx = refTs.reduce((acc,ts,i)=>{ if(ts>=chartStartTs) acc.push(i); return acc; },[]);
 
   if(validIdx.length < 2){
@@ -1062,46 +1059,78 @@ function renderMainChart(){
     ctx.fillText('Pas assez de donn\u00e9es pour cette p\u00e9riode',canvas.width/2,100);return;
   }
 
-  // Construire la courbe : chaque position n'entre qu'à partir de sa date d'achat
-  const values=[];
-  validIdx.forEach(gi=>{
-    const ts = refTs[gi];
-    const tsDate = new Date(ts*1000);
-    let dayVal=0;
-    POS.forEach(p=>{
-      if(tsDate < new Date(p.date)) return; // pas encore acheté
-      const h=p.history||[], pts=p.timestamps||[];
-      if(!h.length) return;
-      // Trouver le prix le plus proche pour cette date
-      let pi=0;
-      if(pts.length>0){
-        let minD=Math.abs(pts[0]-ts);
-        for(let i=1;i<pts.length;i++){const d=Math.abs(pts[i]-ts);if(d<minD){minD=d;pi=i;}}
-      } else {
-        pi=Math.round(gi*(h.length-1)/Math.max(refTs.length-1,1));
-      }
-      dayVal+=(h[Math.min(pi,h.length-1)]||p.price)*p.qty*rt(p.currency||'EUR');
-    });
-    if(dayVal>0) values.push(parseFloat(dayVal.toFixed(2)));
+  // Calcul du portefeuille jour par jour
+  // Chaque position n'entre qu'à partir de sa date d'achat
+  const getPriceAt = (p, ts) => {
+    const h=p.history||[], pts=p.timestamps||[];
+    if(!h.length) return p.price;
+    if(pts.length>0){
+      let pi=0, minD=Math.abs(pts[0]-ts);
+      for(let i=1;i<pts.length;i++){const d=Math.abs(pts[i]-ts);if(d<minD){minD=d;pi=i;}}
+      return h[Math.min(pi,h.length-1)]||p.price;
+    }
+    const gi = refTs.indexOf(ts);
+    const pi = gi>=0 ? Math.round(gi*(h.length-1)/Math.max(refTs.length-1,1)) : h.length-1;
+    return h[Math.min(pi,h.length-1)]||p.price;
+  };
+
+  // Valeur du portfolio à chaque step
+  const rawValues = validIdx.map(gi=>{
+    const ts=refTs[gi], tsDate=new Date(ts*1000);
+    let v=0;
+    POS.forEach(p=>{ if(tsDate>=new Date(p.date)) v+=getPriceAt(p,ts)*p.qty*rt(p.currency||'EUR'); });
+    return v;
   });
 
-  if(values.length<2) return;
+  // TWR : Time-Weighted Return
+  // On détecte les "apports" = jours où la valeur augmente car nouvelle position achetée (pas variation de prix)
+  // Méthode : pour chaque changement de nombre de positions actives → reset sub-period
+  // On calcule le rendement de chaque sous-période et on les compose
+  
+  // Trouver les dates d'ajout de chaque position (triées)
+  const purchaseDates = [...new Set(POS.map(p=>p.date))].sort();
 
-  // TWR % : variation pure des prix, sans effet des apports de capital
-  const twrPct = values[0]>0?((values[values.length-1]-values[0])/values[0]*100):0;
+  // Calculer les rendements par sous-période (entre chaque achat)
+  let subReturns = [];
+  let subStart = 0;
 
-  // Mettre à jour le badge % hero avec le TWR
+  for(let pi=0; pi<purchaseDates.length; pi++){
+    const nextDate = purchaseDates[pi+1];
+    // Indices de la sous-période courante (avant le prochain achat)
+    const subEnd = nextDate
+      ? rawValues.findIndex((_,i) => {
+          const ts = refTs[validIdx[i]];
+          return new Date(ts*1000) >= new Date(nextDate);
+        })
+      : rawValues.length;
+    const end = subEnd < 0 ? rawValues.length : subEnd;
+    if(end > subStart && rawValues[subStart]>0){
+      subReturns.push(rawValues[end-1] / rawValues[subStart]);
+    }
+    subStart = end;
+    if(end >= rawValues.length) break;
+  }
+
+  // TWR = produit de tous les sous-rendements - 1
+  const twr = subReturns.reduce((acc,r)=>acc*r, 1) - 1;
+  const twrPct = twr * 100;
+
+  // Badge % hero = TWR
   const pctEl=document.getElementById('h-pct');
   if(pctEl){
     pctEl.textContent=(twrPct>=0?'+':'')+fmt(Math.abs(twrPct))+'%';
     pctEl.className='badge '+(twrPct>=0?'bg':'br');
   }
 
-  const isUp=twrPct>=0, col=isUp?'#16a34a':'#dc2626';
+  // La courbe reste la valeur absolue (normale — elle monte quand t'investis, c'est voulu)
+  const isUp = rawValues[rawValues.length-1] >= rawValues[0];
+  const col  = isUp ? '#16a34a' : '#dc2626';
+
   CH['c-main']=new Chart(canvas,{
     type:'line',
-    data:{labels:values.map(()=>''),datasets:[{
-      data:values,borderColor:col,
+    data:{labels:rawValues.map(()=>''),datasets:[{
+      data:rawValues.map(v=>parseFloat(v.toFixed(2))),
+      borderColor:col,
       backgroundColor:isUp?'rgba(22,163,74,0.07)':'rgba(220,38,38,0.06)',
       fill:true,tension:0.4,pointRadius:0,borderWidth:2
     }]},
