@@ -466,23 +466,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .btn-cancel:hover{border-color:var(--text);color:var(--text)}
 .btn-edit{background:none;border:none;color:var(--dim);cursor:pointer;padding:4px 6px;border-radius:var(--r);font-size:13px;transition:all .12s;margin-right:2px}
 .btn-edit:hover{color:var(--blue)}
-
-/* ÉPARGNE */
-.ep-wrap{max-width:520px;margin:0 auto}
-.ep-total{background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r2);padding:16px 20px;margin-bottom:20px;display:none}
-.ep-total-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--green);margin-bottom:4px}
-.ep-total-val{font-size:22px;font-weight:400;letter-spacing:-.5px;color:var(--green)}
-.ep-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);padding:22px;margin-bottom:14px;box-shadow:var(--sh)}
-.ep-icon{font-size:22px;margin-bottom:10px}
-.ep-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px}
-.ep-val{font-size:26px;font-weight:400;letter-spacing:-.5px;color:var(--text);margin-bottom:14px}
-.ep-row{display:flex;gap:8px}
-.ep-input{flex:1;background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r);transition:border .12s}
-.ep-input:focus{outline:none;border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
-.ep-btn{background:var(--text);color:#fff;border:none;border-radius:var(--r);padding:9px 18px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
-.ep-btn:hover{opacity:.85}
-.ep-hint{font-size:11px;color:var(--muted);margin-top:8px}
-
 </style>
 </head>
 <body>
@@ -499,7 +482,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <span class="nav-time" id="nav-time"></span>
     <button class="btn-ref" onclick="refreshAll()">&#8635; Actualiser</button>
   </div>
-  <button class="tab-btn" onclick="goPage('epargne',this)">Épargne</button>
 </nav>
 
 <!-- DASHBOARD -->
@@ -1012,7 +994,7 @@ function renderDash(){
   const total=lat+realPnl;
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
 
-  document.getElementById('h-val').innerHTML=fmt(val+(EP&&EP.la||0)+(EP&&EP.lj||0))+' <span class="cur">\u20AC</span>';
+  document.getElementById('h-val').innerHTML=fmt(val)+' <span class="cur">\u20AC</span>';
   const pvEl=document.getElementById('h-pv');
   pvEl.textContent=(lat>=0?'+\u20AC':'-\u20AC')+fmt(Math.abs(lat));
   pvEl.className='badge '+(lat>=0?'bg':'br');
@@ -1339,7 +1321,6 @@ function goPage(id,btn){
   if(id==='achats')renderPosTable();
   if(id==='ventes')renderSaleTable();
   if(id==='watch')renderWatchGrid();
-  if(id==='epargne')renderEpargne();
 }
 
 setInterval(()=>{
@@ -1352,7 +1333,6 @@ renderDash();
 fetchRates().then(()=>{
   if(POS.length||WATCH.length) setTimeout(refreshAll,400);
   else renderDash();
-  renderEpargne();
 });
 
 
@@ -1576,27 +1556,6 @@ function saveEdit(){
     toast('Vente mise à jour ✓','tok');
   }
 }
-
-// ═══ ÉPARGNE ═══════════════════════════════
-let EP = JSON.parse(localStorage.getItem('lp_ep')||'{"la":0,"lj":0}');
-function saveEpStorage(){localStorage.setItem('lp_ep',JSON.stringify(EP));}
-function renderEpargne(){
-  var la=EP.la||0,lj=EP.lj||0,tot=la+lj,e;
-  e=document.getElementById('la-val');   if(e)e.textContent='€'+la.toLocaleString('fr-FR');
-  e=document.getElementById('lj-val');   if(e)e.textContent='€'+lj.toLocaleString('fr-FR');
-  e=document.getElementById('la-input'); if(e&&la>0)e.value=la;
-  e=document.getElementById('lj-input'); if(e&&lj>0)e.value=lj;
-  e=document.getElementById('ep-total'); if(e)e.style.display=tot>0?'block':'none';
-  e=document.getElementById('ep-total-val');if(e)e.textContent='€'+tot.toLocaleString('fr-FR');
-}
-function saveEp(id){
-  var v=parseFloat(document.getElementById(id+'-input').value)||0;
-  EP[id]=Math.max(0,v);
-  saveEpStorage();
-  renderEpargne();
-  renderDash();
-  toast('Enregistré ✓','tok');
-}
 </script>
 
 <!-- EDIT MODAL -->
@@ -1607,34 +1566,6 @@ function saveEp(id){
     <div class="edit-actions">
       <button class="btn-cancel" onclick="closeEdit()">Annuler</button>
       <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-<div class="page" id="page-epargne">
-  <div class="ep-wrap">
-    <div class="ep-total" id="ep-total">
-      <div class="ep-total-lbl">Épargne totale</div>
-      <div class="ep-total-val" id="ep-total-val">€0</div>
-    </div>
-    <div class="ep-card">
-      <div class="ep-icon">🏦</div>
-      <div class="ep-lbl">Livret A</div>
-      <div class="ep-val" id="la-val">€0</div>
-      <div class="ep-row">
-        <input class="ep-input" id="la-input" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveEp('la')">
-        <button class="ep-btn" onclick="saveEp('la')">Enregistrer</button>
-      </div>
-      <div class="ep-hint">Taux : 2.4 % &middot; Plafond : 22 950 €</div>
-    </div>
-    <div class="ep-card">
-      <div class="ep-icon">🐥</div>
-      <div class="ep-lbl">Livret Jeune</div>
-      <div class="ep-val" id="lj-val">€0</div>
-      <div class="ep-row">
-        <input class="ep-input" id="lj-input" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveEp('lj')">
-        <button class="ep-btn" onclick="saveEp('lj')">Enregistrer</button>
-      </div>
-      <div class="ep-hint">Taux : 3 % &middot; Plafond : 1 600 €</div>
     </div>
   </div>
 </div>
