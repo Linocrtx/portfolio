@@ -1115,11 +1115,16 @@ function renderMainChart(){
   const twr = subReturns.reduce((acc,r)=>acc*r, 1) - 1;
   const twrPct = twr * 100;
 
-  // Badge % hero = TWR
+  // Badge % hero = (val - inv) / inv — performance globale réelle
+  // Calculé ici pour avoir inv et val dans le scope
   const pctEl=document.getElementById('h-pct');
   if(pctEl){
-    pctEl.textContent=(twrPct>=0?'+':'')+fmt(Math.abs(twrPct))+'%';
-    pctEl.className='badge '+(twrPct>=0?'bg':'br');
+    let _inv=0,_val=0;
+    POS.forEach(p=>{const r2=rt(p.currency||'EUR');_inv+=p.pru*p.qty*r2;_val+=p.price*p.qty*r2;});
+    const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0);
+    const totalPct=_inv>0?((_val-_inv+realPnl)/_inv*100):0;
+    pctEl.textContent=(totalPct>=0?'+':'')+fmt(Math.abs(totalPct))+'%';
+    pctEl.className='badge '+(totalPct>=0?'bg':'br');
   }
 
   // La courbe reste la valeur absolue (normale — elle monte quand t'investis, c'est voulu)
