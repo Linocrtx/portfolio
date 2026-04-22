@@ -466,6 +466,29 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .btn-cancel:hover{border-color:var(--text);color:var(--text)}
 .btn-edit{background:none;border:none;color:var(--dim);cursor:pointer;padding:4px 6px;border-radius:var(--r);font-size:13px;transition:all .12s;margin-right:2px}
 .btn-edit:hover{color:var(--blue)}
+
+/* ── MODAL CLÔTURE ── */
+.cloture-overlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(26,26,26,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1.5rem}
+.cloture-overlay.on{display:flex}
+.cloture-modal{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);box-shadow:var(--sh3);width:100%;max-width:420px;padding:26px}
+.cloture-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+.cloture-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.cloture-fields{display:flex;flex-direction:column;gap:12px;margin-bottom:20px}
+.cloture-fg{display:flex;flex-direction:column;gap:5px}
+.cloture-fg label{font-size:11px;font-weight:500;color:var(--muted)}
+.cloture-fg input{background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r);transition:all .12s}
+.cloture-fg input:focus{outline:none;border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
+.cloture-preview{background:var(--card2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:20px;font-size:13px}
+.cloture-preview-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.cloture-preview-row:last-child{margin-bottom:0;padding-top:8px;border-top:1px solid var(--border);font-weight:600}
+.cloture-actions{display:flex;gap:8px;justify-content:flex-end}
+.btn-cloture{background:var(--text);color:#fff;border:none;border-radius:var(--r);padding:9px 20px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:opacity .12s}
+.btn-cloture:hover{opacity:.85}
+.btn-cloture-cancel{background:none;border:1px solid var(--border2);color:var(--text2);border-radius:var(--r);padding:9px 16px;font-family:var(--font);font-size:13px;cursor:pointer;transition:all .12s}
+.btn-cloture-cancel:hover{border-color:var(--text);color:var(--text)}
+.btn-cloture-pos{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 6px;border-radius:var(--r);font-size:12px;font-weight:500;transition:all .12s;white-space:nowrap;font-family:var(--font)}
+.btn-cloture-pos:hover{color:var(--red);background:var(--red-bg)}
+
 </style>
 </head>
 <body>
@@ -1235,7 +1258,7 @@ function renderPosTable(){
   let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU</th><th>Qte</th><th>Cours</th><th>Investi</th><th>Valeur act.</th><th>PV/MV</th><th>%</th><th></th></tr></thead><tbody>';
   POS.forEach(p=>{
     const s=sy(),inv=p.pru*p.qty,v=p.price*p.qty,pnl=v-inv,pct=(p.price-p.pru)/p.pru*100;
-    html+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input class="ci" type="number" value="${fmt(p.price)}" onchange="updPrice(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td><span class="pvb ${pnl>=0?'pvg':'pvr'}">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</span></td><td style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pct)}${fmt(Math.abs(pct))}%</td><td><button class="btn-edit" onclick="openEditPos(${p.id})" title="Modifier">&#9998;</button><button class="del-btn" onclick="delPos(${p.id})" title="Supprimer">&#10005;</button></td></tr>`;
+    html+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input class="ci" type="number" value="${fmt(p.price)}" onchange="updPrice(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td><span class="pvb ${pnl>=0?'pvg':'pvr'}">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</span></td><td style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pct)}${fmt(Math.abs(pct))}%</td><td><button class="btn-edit" onclick="openEditPos(${p.id})" title="Modifier">&#9998;</button><button class="btn-cloture-pos" onclick="openCloture(${p.id})" title="Clôturer la position">Clôturer</button><button class="del-btn" onclick="delPos(${p.id})" title="Supprimer">&#10005;</button></td></tr>`;
   });
   el.innerHTML=html+'</tbody></table>';
 }
@@ -1556,6 +1579,108 @@ function saveEdit(){
     toast('Vente mise à jour ✓','tok');
   }
 }
+
+
+// ═══ CLÔTURE DE POSITION ════════════════════
+let _clId = null;
+
+function openCloture(id){
+  const p = POS.find(x=>x.id===id);
+  if(!p) return;
+  _clId = id;
+
+  document.getElementById('cl-title').textContent = 'Clôturer — ' + p.name;
+  document.getElementById('cl-sub').textContent   = p.ticker + ' · ' + p.qty + ' action' + (p.qty>1?'s':'') + ' · PRU ' + fmt(p.pru) + ' €';
+  document.getElementById('cl-qty').value   = p.qty;
+  document.getElementById('cl-price').value = p.price > 0 ? fmt(p.price) : '';
+  document.getElementById('cl-date').value  = new Date().toISOString().split('T')[0];
+
+  updateCloturePreview();
+  document.getElementById('cloture-overlay').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCloture(){
+  document.getElementById('cloture-overlay').classList.remove('on');
+  document.body.style.overflow = '';
+  _clId = null;
+}
+
+function updateCloturePreview(){
+  const p = POS.find(x=>x.id===_clId);
+  if(!p) return;
+  const qty   = parseFloat(document.getElementById('cl-qty').value)   || 0;
+  const price = parseFloat(document.getElementById('cl-price').value) || 0;
+  const pnl   = (price - p.pru) * qty;
+  const pct   = p.pru > 0 ? ((price - p.pru) / p.pru * 100) : 0;
+  const rest  = p.qty - qty;
+  const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('cl-preview').innerHTML = `
+    <div class="cloture-preview-row">
+      <span style="color:var(--muted)">Montant de la vente</span>
+      <span>${price > 0 ? fmt(price * qty) + ' €' : '—'}</span>
+    </div>
+    <div class="cloture-preview-row">
+      <span style="color:var(--muted)">Actions restantes</span>
+      <span>${rest >= 0 ? rest : '<span style="color:var(--red)">Quantité invalide</span>'}</span>
+    </div>
+    <div class="cloture-preview-row">
+      <span>PV / MV</span>
+      <span style="color:${pnlColor}">${pnl >= 0 ? '+' : ''}${fmt(pnl)} € (${pnl >= 0 ? '+' : ''}${fmt(pct)}%)</span>
+    </div>
+  `;
+}
+
+function confirmCloture(){
+  const p = POS.find(x=>x.id===_clId);
+  if(!p) return;
+
+  const qty   = parseFloat(document.getElementById('cl-qty').value);
+  const price = parseFloat(document.getElementById('cl-price').value);
+  const date  = document.getElementById('cl-date').value;
+
+  if(isNaN(qty) || qty <= 0)           { toast('Quantité invalide','ter'); return; }
+  if(isNaN(price) || price <= 0)       { toast('Prix invalide','ter'); return; }
+  if(!date)                             { toast('Date manquante','ter'); return; }
+  if(qty > p.qty + 0.0001)             { toast('Quantité supérieure à la position','ter'); return; }
+
+  const pnl = (price - p.pru) * qty;
+
+  // 1. Ajouter dans les ventes
+  SALES.push({
+    id:       Date.now(),
+    ticker:   p.ticker,
+    name:     p.name,
+    date:     date,
+    pru:      p.pru,
+    sell:     price,
+    qty:      qty,
+    pnl:      pnl,
+    currency: p.currency || 'EUR',
+  });
+
+  // 2. Réduire ou supprimer la position
+  const rest = parseFloat((p.qty - qty).toFixed(10));
+  if(rest < 0.0001){
+    // Vente totale — supprimer la ligne
+    POS = POS.filter(x=>x.id !== _clId);
+  } else {
+    // Vente partielle — réduire la quantité
+    p.qty = rest;
+  }
+
+  save();
+  closeCloture();
+  renderPosTable();
+  renderSaleTable();
+  renderDash();
+
+  const msg = rest < 0.0001
+    ? p.ticker + ' clôturé · ' + (pnl>=0?'+':'') + fmt(pnl) + ' €'
+    : qty + ' ' + p.ticker + ' vendus · reste ' + rest;
+  toast(msg, pnl >= 0 ? 'tok' : '');
+}
 </script>
 
 <!-- EDIT MODAL -->
@@ -1569,5 +1694,33 @@ function saveEdit(){
     </div>
   </div>
 </div>
+
+<!-- MODAL CLÔTURE -->
+<div class="cloture-overlay" id="cloture-overlay" onclick="if(event.target===this)closeCloture()">
+  <div class="cloture-modal">
+    <div class="cloture-title" id="cl-title">Clôturer la position</div>
+    <div class="cloture-sub" id="cl-sub"></div>
+    <div class="cloture-fields">
+      <div class="cloture-fg">
+        <label>Quantité vendue</label>
+        <input id="cl-qty" type="number" min="0.001" step="any" oninput="updateCloturePreview()">
+      </div>
+      <div class="cloture-fg">
+        <label>Prix de vente (€)</label>
+        <input id="cl-price" type="number" min="0" step="0.01" oninput="updateCloturePreview()">
+      </div>
+      <div class="cloture-fg">
+        <label>Date de vente</label>
+        <input id="cl-date" type="date">
+      </div>
+    </div>
+    <div class="cloture-preview" id="cl-preview"></div>
+    <div class="cloture-actions">
+      <button class="btn-cloture-cancel" onclick="closeCloture()">Annuler</button>
+      <button class="btn-cloture" onclick="confirmCloture()">Confirmer la vente</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
