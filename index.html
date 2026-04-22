@@ -1268,12 +1268,13 @@ function renderSaleTable(){
   if(!el) return;
   if(!SALES.length){el.innerHTML='<div class="empty"><div class="empty-ico">&#128176;</div><div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px;">Aucune vente</div></div>';return;}
   let tot=0;
-  let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU achat</th><th>Prix vente</th><th>Qte</th><th>PV/MV</th><th>Flat tax 30%</th><th></th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU achat</th><th>Prix vente</th><th>Qte</th><th>PV/MV</th><th></th></tr></thead><tbody>';
   SALES.forEach(s=>{
-    tot+=s.pnl*rt(s.currency||'EUR');const ss=sy();const tax=s.pnl>0?s.pnl*0.3:0;
-    html+=`<tr><td><div class="tsym">${s.ticker}</div><div class="tname">${s.name}</div></td><td>${s.date}</td><td>${ss}${fmt(s.pru)}</td><td>${ss}${fmt(s.sell)}</td><td>${s.qty}</td><td><span class="pvb ${s.pnl>=0?'pvg':'pvr'}">${sg(s.pnl)}${ss}${fmt(Math.abs(s.pnl))}</span></td><td style="color:var(--muted);font-size:11px;">${tax>0?'-\u20AC'+fmt(tax):'\u2014'}</td><td><button class="btn-edit" onclick="openEditSale(${s.id})" title="Modifier">&#9998;</button><button class="del-btn" onclick="delSale(${s.id})" title="Supprimer">&#10005;</button></td></tr>`;
+    tot+=s.pnl*rt(s.currency||'EUR');const ss=sy();
+    const fraisStr=s.frais>0?`<span style="color:var(--muted);font-size:10px;display:block;margin-top:2px;">frais: -${fmt(s.frais)} €</span>`:'';
+    html+=`<tr><td><div class="tsym">${s.ticker}</div><div class="tname">${s.name}</div></td><td>${s.date}</td><td>${ss}${fmt(s.pru)}</td><td>${ss}${fmt(s.sell)}</td><td>${s.qty}</td><td><span class="pvb ${s.pnl>=0?'pvg':'pvr'}">${sg(s.pnl)}${ss}${fmt(Math.abs(s.pnl))}</span>${fraisStr}</td><td><button class="btn-edit" onclick="openEditSale(${s.id})" title="Modifier">&#9998;</button><button class="del-btn" onclick="delSale(${s.id})" title="Supprimer">&#10005;</button></td></tr>`;
   });
-  html+=`</tbody><tfoot><tr><td>Total PV/MV</td><td colspan="4"></td><td style="text-align:right;" class="${cl(tot)}">${sg(tot)}\u20AC${fmt(Math.abs(tot))}</td><td></td><td></td></tr></tfoot></table>`;
+  html+=`</tbody><tfoot><tr><td>Total PV/MV</td><td colspan="4"></td><td style="text-align:right;" class="${cl(tot)}">${sg(tot)}\u20AC${fmt(Math.abs(tot))}</td><td></td></tr></tfoot></table>`;
   el.innerHTML=html;
 }
 
@@ -1611,8 +1612,10 @@ function updateCloturePreview(){
   if(!p) return;
   const qty   = parseFloat(document.getElementById('cl-qty').value)   || 0;
   const price = parseFloat(document.getElementById('cl-price').value) || 0;
-  const pnl   = (price - p.pru) * qty;
-  const pct   = p.pru > 0 ? ((price - p.pru) / p.pru * 100) : 0;
+  const frais = parseFloat(document.getElementById('cl-frais').value) || 0;
+  const gross = (price - p.pru) * qty;
+  const pnl   = gross - frais;
+  const pct   = p.pru > 0 ? (pnl / (p.pru * qty) * 100) : 0;
   const rest  = p.qty - qty;
   const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
 
@@ -1621,12 +1624,16 @@ function updateCloturePreview(){
       <span style="color:var(--muted)">Montant de la vente</span>
       <span>${price > 0 ? fmt(price * qty) + ' €' : '—'}</span>
     </div>
+    ${frais > 0 ? `<div class="cloture-preview-row">
+      <span style="color:var(--muted)">Frais de courtage</span>
+      <span style="color:var(--red)">-${fmt(frais)} €</span>
+    </div>` : ''}
     <div class="cloture-preview-row">
       <span style="color:var(--muted)">Actions restantes</span>
       <span>${rest >= 0 ? rest : '<span style="color:var(--red)">Quantité invalide</span>'}</span>
     </div>
     <div class="cloture-preview-row">
-      <span>PV / MV</span>
+      <span>PV / MV nette</span>
       <span style="color:${pnlColor}">${pnl >= 0 ? '+' : ''}${fmt(pnl)} € (${pnl >= 0 ? '+' : ''}${fmt(pct)}%)</span>
     </div>
   `;
@@ -1645,7 +1652,8 @@ function confirmCloture(){
   if(!date)                             { toast('Date manquante','ter'); return; }
   if(qty > p.qty + 0.0001)             { toast('Quantité supérieure à la position','ter'); return; }
 
-  const pnl = (price - p.pru) * qty;
+  const frais = parseFloat(document.getElementById('cl-frais').value) || 0;
+  const pnl   = (price - p.pru) * qty - frais;
 
   // 1. Ajouter dans les ventes
   SALES.push({
@@ -1656,6 +1664,7 @@ function confirmCloture(){
     pru:      p.pru,
     sell:     price,
     qty:      qty,
+    frais:    frais,
     pnl:      pnl,
     currency: p.currency || 'EUR',
   });
@@ -1712,6 +1721,10 @@ function confirmCloture(){
       <div class="cloture-fg">
         <label>Date de vente</label>
         <input id="cl-date" type="date">
+      </div>
+      <div class="cloture-fg">
+        <label>Frais de courtage (€) <span style="font-weight:400;color:var(--dim)">— optionnel</span></label>
+        <input id="cl-frais" type="number" min="0" step="0.01" placeholder="0.00" oninput="updateCloturePreview()">
       </div>
     </div>
     <div class="cloture-preview" id="cl-preview"></div>
