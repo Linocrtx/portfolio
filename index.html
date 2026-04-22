@@ -496,6 +496,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 @media(max-width:700px){.pie-grid{grid-template-columns:1fr}}
 .pie-wrap{display:flex;align-items:center;gap:18px;padding-top:8px}
 .pie-canvas-wrap{position:relative;width:110px;height:110px;flex-shrink:0}
+.pie-canvas-wrap canvas{width:110px!important;height:110px!important}
 .pie-legend{flex:1;display:flex;flex-direction:column;gap:5px}
 .pie-legend-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text2)}
 .pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
@@ -1074,7 +1075,7 @@ function renderDash(){
   renderAllocBars(val);
   renderPnlChart();
   updatePeriodBadges();
-  renderPies();
+  setTimeout(renderPies, 50);
 }
 
 function renderMainChart(){
@@ -1800,7 +1801,8 @@ function renderPies(){
         }]
       },
       options: {
-        responsive: false,
+        responsive: true,
+        maintainAspectRatio: true,
         cutout: '65%',
         plugins: {
           legend: {display: false},
