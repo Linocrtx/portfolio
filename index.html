@@ -648,7 +648,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 
 <script>
 
-
 // ── LOGOS via Clearbit ──────────────────────────────
 const LOGO_DOMAINS = {
   'AI.PA':'airliquide.com','AIR.PA':'airbus.com','BN.PA':'danone.com',
@@ -1018,7 +1017,6 @@ function renderDash(){
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
 
   document.getElementById('h-val').innerHTML=fmt(val)+' <span class="cur">\u20AC</span>';
-  // badges h-pv / h-pct updated by renderMainChart (period-aware)
   const fd=POS.map(p=>p.date).sort()[0];
   if(fd){const days=Math.floor((new Date()-new Date(fd))/86400000);document.getElementById('h-since').textContent='depuis '+days+'j';}
 
@@ -1108,10 +1106,6 @@ function renderMainChart(){
     return v;
   });
 
-  // TWR : Time-Weighted Return
-  // On détecte les "apports" = jours où la valeur augmente car nouvelle position achetée (pas variation de prix)
-  // Méthode : pour chaque changement de nombre de positions actives → reset sub-period
-  // On calcule le rendement de chaque sous-période et on les compose
   
   // Trouver les dates d'ajout de chaque position (triées)
   const purchaseDates = [...new Set(POS.map(p=>p.date))].sort();
@@ -1141,21 +1135,58 @@ function renderMainChart(){
   const twr = subReturns.reduce((acc,r)=>acc*r, 1) - 1;
   const twrPct = twr * 100;
 
-  // Badge % et PV/MV hero = performance sur la PÉRIODE sélectionnée
-  const pValStart = rawValues[0] || 0;
-  const pValEnd   = rawValues[rawValues.length-1] || 0;
-  const periodPnl = pValEnd - pValStart;
-  const periodPct = pValStart > 0 ? (periodPnl / pValStart * 100) : 0;
-  const pvElH  = document.getElementById('h-pv');
-  const pctElH = document.getElementById('h-pct');
-  if(pvElH){
-    pvElH.textContent = (periodPnl>=0?'+€':'-€') + fmt(Math.abs(periodPnl));
-    pvElH.className   = 'badge ' + (periodPnl>=0?'bg':'br');
-  }
-  if(pctElH){
-    pctElH.textContent = (periodPct>=0?'+':'') + fmt(Math.abs(periodPct)) + '%';
-    pctElH.className   = 'badge ' + (periodPct>=0?'bg':'br');
-  }
+  // Badge % hero = TWR sur la période (neutralise les apports de cash)
+  // On découpe rawValues en sous-périodes à chaque nouvel achat
+  // et on compose les rendements pour éliminer l'effet cashflow
+  (function(){
+    const n = rawValues.length;
+    if(n < 2) return;
+
+    // Dates des achats dans la période (triées)
+    const periodStartTs = refTs[validIdx[0]];
+    const buyTs = POS
+      .map(p => new Date(p.date).getTime()/1000)
+      .filter(ts => ts > periodStartTs)
+      .sort((a,b)=>a-b);
+
+    // Pour chaque sous-période, trouver l'index dans rawValues
+    const splitPoints = [0];
+    buyTs.forEach(bts => {
+      // Trouver l'index dans validIdx le plus proche de cette date
+      let closest = 0, minD = Infinity;
+      validIdx.forEach((gi,i) => {
+        const d = Math.abs(refTs[gi] - bts);
+        if(d < minD){ minD=d; closest=i; }
+      });
+      if(closest > 0 && closest < n-1 && !splitPoints.includes(closest))
+        splitPoints.push(closest);
+    });
+    splitPoints.push(n-1);
+
+    // Calculer le rendement composé TWR
+    let twr = 1;
+    for(let i=0; i<splitPoints.length-1; i++){
+      const vStart = rawValues[splitPoints[i]];
+      const vEnd   = rawValues[splitPoints[i+1]];
+      if(vStart > 0) twr *= (vEnd / vStart);
+    }
+    const twrPct = (twr - 1) * 100;
+
+    // PV/MV en € = différence pure sur la dernière sous-période
+    // (valeur actuelle vs valeur au début de la période ajustée)
+    const pnlEur = rawValues[n-1] - rawValues[splitPoints[splitPoints.length-2]];
+
+    const pvElH  = document.getElementById('h-pv');
+    const pctElH = document.getElementById('h-pct');
+    if(pvElH){
+      pvElH.textContent = (twrPct>=0?'+€':'-€') + fmt(Math.abs(rawValues[n-1]-rawValues[0]));
+      pvElH.className   = 'badge ' + (twrPct>=0?'bg':'br');
+    }
+    if(pctElH){
+      pctElH.textContent = (twrPct>=0?'+':'') + fmt(Math.abs(twrPct)) + '%';
+      pctElH.className   = 'badge ' + (twrPct>=0?'bg':'br');
+    }
+  })();
 
   // La courbe reste la valeur absolue (normale — elle monte quand t'investis, c'est voulu)
   const isUp = rawValues[rawValues.length-1] >= rawValues[0];
@@ -1366,12 +1397,10 @@ fetchRates().then(()=>{
   else renderDash();
 });
 
-
 // ════════════════════════════════════════════════
 // MODAL SURVEILLANCE
 // ════════════════════════════════════════════════
 let mWatch = null, mPeriod = '1M', mHistory = [];
-
 
 function openModal(wid){
   const w = WATCH.find(x=>x.id===wid);
@@ -1514,7 +1543,6 @@ function drawMChart(){
   });
 }
 
-
 // ════════════════════════════════════════════
 // MODIFIER ACHATS / VENTES
 // ════════════════════════════════════════════
@@ -1587,7 +1615,6 @@ function saveEdit(){
     toast('Vente mise à jour ✓','tok');
   }
 }
-
 
 // ═══ CLÔTURE DE POSITION ════════════════════
 let _clId = null;
