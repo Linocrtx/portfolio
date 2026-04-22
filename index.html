@@ -472,7 +472,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .pos-table{width:100%;border-collapse:collapse}
 .pos-table thead th{background:var(--card2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 .pos-table thead th:first-child{text-align:left;padding-left:16px}
-.pos-table thead th[onclick]:hover{color:var(--text);background:var(--border)}
+.pos-table thead th[onclick]:hover{background:rgba(0,0,0,.04);color:var(--text)}
 .pos-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 .pos-table tbody tr:last-child{border-bottom:none}
 .pos-table tbody tr:hover{background:var(--card2)}
@@ -642,7 +642,13 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
       </div>
       <div class="modal-chart-wrap"><canvas id="c-modal"></canvas></div>
       <div class="modal-kpis" id="m-kpis"></div>
-      <div class="news-hd">Actualités ré
+      <div class="news-hd">Actualités récentes</div>
+      <div id="m-news"></div>
+    </div>
+  </div>
+</div>
+
+<script>
 
 
 // ── LOGOS via Clearbit ──────────────────────────────
@@ -702,7 +708,7 @@ let POS   = JSON.parse(localStorage.getItem('lp_pos')   || '[]');
 let SALES = JSON.parse(localStorage.getItem('lp_sales') || '[]');
 let WATCH = JSON.parse(localStorage.getItem('lp_watch') || '[]');
 let PERIOD = '1M';
-let POS_SORT = {col:'val', dir:-1}; // col: val|pct|pnl|weight|qty, dir: 1=asc -1=desc
+let POS_SORT = {col:'val', dir:-1};
 let acSel=null, wacSel=null, acTmr=null, wacTmr=null;
 const COLORS = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#059669','#ca8a04'];
 const CC = [{bg:'#dbeafe',fg:'#1d4ed8'},{bg:'#dcfce7',fg:'#15803d'},{bg:'#fef9c3',fg:'#a16207'},{bg:'#fee2e2',fg:'#b91c1c'},{bg:'#f3e8ff',fg:'#7e22ce'},{bg:'#cffafe',fg:'#0e7490'},{bg:'#fce7f3',fg:'#be185d'},{bg:'#ffedd5',fg:'#c2410c'}];
@@ -1175,15 +1181,14 @@ function renderPosCards(){
   var title = document.getElementById('pos-title');
   if(!POS.length){ if(el) el.innerHTML=''; if(title) title.textContent=''; return; }
 
-  var sortFns = {
-    'val':    function(a,b){ return (b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR')); },
-    'pct':    function(a,b){ return ((b.price-b.pru)/b.pru*100)-((a.price-a.pru)/a.pru*100); },
-    'pnl':    function(a,b){ return ((b.price-b.pru)*b.qty*rt(b.currency||'EUR'))-((a.price-a.pru)*a.qty*rt(a.currency||'EUR')); },
-    'qty':    function(a,b){ return b.qty - a.qty; },
-    'name':   function(a,b){ return a.name.localeCompare(b.name); },
+  var _sfn={
+    val:function(a,b){return (b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR'));},
+    pct:function(a,b){return ((b.price-b.pru)/b.pru*100)-((a.price-a.pru)/a.pru*100);},
+    pnl:function(a,b){return ((b.price-b.pru)*b.qty*rt(b.currency||'EUR'))-((a.price-a.pru)*a.qty*rt(a.currency||'EUR'));},
+    qty:function(a,b){return b.qty-a.qty;},
+    name:function(a,b){return a.name.localeCompare(b.name);}
   };
-  var fn = sortFns[POS_SORT.col] || sortFns['val'];
-  var sorted = POS.slice().sort(function(a,b){ return fn(a,b) * POS_SORT.dir; });
+  var sorted=POS.slice().sort(function(a,b){return (_sfn[POS_SORT.col]||_sfn.val)(a,b)*POS_SORT.dir;});
   var totalVal = sorted.reduce(function(s,p){return s+p.price*p.qty*rt(p.currency||'EUR');},0)||1;
   var totalInv = sorted.reduce(function(s,p){return s+p.pru*p.qty*rt(p.currency||'EUR');},0)||1;
   var totalPnl = totalVal - totalInv;
@@ -1213,16 +1218,11 @@ function renderPosCards(){
 
   var tc=totalPnl>=0?'var(--green)':'var(--red)';
   el.innerHTML='<div class="pos-table-wrap"><table class="pos-table">'
-    +'<thead><tr>'
-    +'<th onclick="sortPosTable(\'name\')" style="cursor:pointer;user-select:none">Instrument '+(POS_SORT.col==='name'?(POS_SORT.dir===-1?'↓':'↑'):'')+'</th>'
-    +'<th onclick="sortPosTable(\'qty\')" style="cursor:pointer;user-select:none;text-align:right">Qté '+(POS_SORT.col==='qty'?(POS_SORT.dir===-1?'↓':'↑'):'')+'</th>'
-    +'<th>PRU</th>'
-    +'<th>Cours</th>'
-    +'<th onclick="sortPosTable(\'pct\')" style="cursor:pointer;user-select:none;text-align:right">Perf. '+(POS_SORT.col==='pct'?(POS_SORT.dir===-1?'↓':'↑'):'')+'</th>'
-    +'<th onclick="sortPosTable(\'val\')" style="cursor:pointer;user-select:none;text-align:right">Valeur '+(POS_SORT.col==='val'?(POS_SORT.dir===-1?'↓':'↑'):'')+'</th>'
-    +'<th onclick="sortPosTable(\'pnl\')" style="cursor:pointer;user-select:none;text-align:right">+/- val. '+(POS_SORT.col==='pnl'?(POS_SORT.dir===-1?'↓':'↑'):'')+'</th>'
-    +'<th style="text-align:right">Poids</th>'
-    +'</tr></thead>'
+    (function(){
+    var s=POS_SORT,d=s.dir===-1?'▼':'▲',none='';
+    function h(col,lbl,r){var ar=s.col===col?' <span style="font-size:9px">'+d+'</span>':none;return '<th onclick="sortPosTable(\''+col+'\')" style="cursor:pointer;user-select:none'+(r?';text-align:right':'')+'">'+(r?'':'')+lbl+ar+'</th>';}
+    return '<thead><tr>'+h('name','Instrument',false)+'<th style="text-align:right">Qté</th><th>PRU</th><th>Cours</th>'+h('pct','Perf.',true)+h('val','Valeur',true)+h('pnl','+/- val.',true)+'<th style="text-align:right">Poids</th></tr></thead>';
+  })()
     +'<tbody>'+rows+'</tbody>'
     +'<tfoot><tr><td colspan="5">Total portefeuille</td><td>\u20AC'+fmt(totalVal)+'</td><td style="color:'+tc+'">'+sg(totalPnl)+'\u20AC'+fmt(Math.abs(totalPnl))+'</td><td style="color:var(--muted);font-size:11px;text-align:right">100%</td></tr></tfoot>'
     +'</table></div>';
@@ -1662,13 +1662,9 @@ function updatePeriodBadges(){
 }
 
 function sortPosTable(col){
-  if(POS_SORT.col === col) POS_SORT.dir *= -1;
-  else { POS_SORT.col = col; POS_SORT.dir = -1; }
+  if(POS_SORT.col===col) POS_SORT.dir*=-1;
+  else{POS_SORT.col=col;POS_SORT.dir=-1;}
   renderPosCards();
-}
-th.abs(pct)) + '%';
-    pctEl.className = 'badge ' + (pct>=0?'bg':'br');
-  }
 }
 </script>
 
