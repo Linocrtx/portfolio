@@ -468,7 +468,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .btn-edit:hover{color:var(--blue)}
 
 /* ── POSITIONS TABLE DASHBOARD ── */
-.pos-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden;box-shadow:var(--sh);margin-bottom:1.75rem}
+.pos-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);overflow-x:auto;box-shadow:var(--sh);margin-bottom:1.75rem;width:100%}
 .pos-table{width:100%;border-collapse:collapse}
 .pos-table thead th{background:var(--card2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 .pos-table thead th:first-child{text-align:left;padding-left:16px}
@@ -535,7 +535,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <div class="chart-box"><canvas id="c-main"></canvas></div>
   </div>
   <div class="sec-t" id="pos-title"></div>
-  <div class="pos-grid" id="pos-cards"></div>
+  <div id="pos-cards"></div>
   <div class="cg2">
     <div class="card"><div class="card-hd">Repartition</div><div id="alloc-bars"></div></div>
     <div class="card"><div class="card-hd">PV/MV realisees cumulees</div><div class="chart-box"><canvas id="c-pnl"></canvas></div></div>
