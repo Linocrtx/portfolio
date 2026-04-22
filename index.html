@@ -1018,12 +1018,7 @@ function renderDash(){
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
 
   document.getElementById('h-val').innerHTML=fmt(val)+' <span class="cur">\u20AC</span>';
-  const pvEl=document.getElementById('h-pv');
-  pvEl.textContent=(lat>=0?'+\u20AC':'-\u20AC')+fmt(Math.abs(lat));
-  pvEl.className='badge '+(lat>=0?'bg':'br');
-  const pctEl=document.getElementById('h-pct');
-  pctEl.textContent=(latP>=0?'+':'')+fmt(latP)+'%';
-  pctEl.className='badge '+(latP>=0?'bg':'br');
+  // badges h-pv / h-pct updated by renderMainChart (period-aware)
   const fd=POS.map(p=>p.date).sort()[0];
   if(fd){const days=Math.floor((new Date()-new Date(fd))/86400000);document.getElementById('h-since').textContent='depuis '+days+'j';}
 
@@ -1063,7 +1058,15 @@ function renderMainChart(){
   if(refTs.length < 2){
     const ctx=canvas.getContext('2d');canvas.width=canvas.parentElement.offsetWidth||600;canvas.height=200;ctx.clearRect(0,0,canvas.width,200);
     ctx.fillStyle='#9a9a94';ctx.font='13px Inter,sans-serif';ctx.textAlign='center';
-    ctx.fillText('Cliquez \u21BB Actualiser pour charger l\u2019historique',canvas.width/2,100);return;
+    ctx.fillText('Cliquez \u21BB Actualiser pour charger l\u2019historique',canvas.width/2,100);
+    // Fallback badges — perf globale
+    let _inv=0,_val=0;
+    POS.forEach(p=>{const r2=rt(p.currency||'EUR');_inv+=p.pru*p.qty*r2;_val+=p.price*p.qty*r2;});
+    const _lat=_val-_inv, _latP=_inv>0?(_lat/_inv*100):0;
+    const _pvEl=document.getElementById('h-pv'), _pctEl=document.getElementById('h-pct');
+    if(_pvEl){_pvEl.textContent=(_lat>=0?'+€':'-€')+fmt(Math.abs(_lat));_pvEl.className='badge '+(_lat>=0?'bg':'br');}
+    if(_pctEl){_pctEl.textContent=(_latP>=0?'+':'')+fmt(Math.abs(_latP))+'%';_pctEl.className='badge '+(_latP>=0?'bg':'br');}
+    return;
   }
 
   // Période
@@ -1138,16 +1141,20 @@ function renderMainChart(){
   const twr = subReturns.reduce((acc,r)=>acc*r, 1) - 1;
   const twrPct = twr * 100;
 
-  // Badge % hero = (val - inv) / inv — performance globale réelle
-  // Calculé ici pour avoir inv et val dans le scope
-  const pctEl=document.getElementById('h-pct');
-  if(pctEl){
-    let _inv=0,_val=0;
-    POS.forEach(p=>{const r2=rt(p.currency||'EUR');_inv+=p.pru*p.qty*r2;_val+=p.price*p.qty*r2;});
-    const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0);
-    const totalPct=_inv>0?((_val-_inv+realPnl)/_inv*100):0;
-    pctEl.textContent=(totalPct>=0?'+':'')+fmt(Math.abs(totalPct))+'%';
-    pctEl.className='badge '+(totalPct>=0?'bg':'br');
+  // Badge % et PV/MV hero = performance sur la PÉRIODE sélectionnée
+  const pValStart = rawValues[0] || 0;
+  const pValEnd   = rawValues[rawValues.length-1] || 0;
+  const periodPnl = pValEnd - pValStart;
+  const periodPct = pValStart > 0 ? (periodPnl / pValStart * 100) : 0;
+  const pvElH  = document.getElementById('h-pv');
+  const pctElH = document.getElementById('h-pct');
+  if(pvElH){
+    pvElH.textContent = (periodPnl>=0?'+€':'-€') + fmt(Math.abs(periodPnl));
+    pvElH.className   = 'badge ' + (periodPnl>=0?'bg':'br');
+  }
+  if(pctElH){
+    pctElH.textContent = (periodPct>=0?'+':'') + fmt(Math.abs(periodPct)) + '%';
+    pctElH.className   = 'badge ' + (periodPct>=0?'bg':'br');
   }
 
   // La courbe reste la valeur absolue (normale — elle monte quand t'investis, c'est voulu)
