@@ -1142,45 +1142,46 @@ function renderMainChart(){
     const n = rawValues.length;
     if(n < 2) return;
 
-    // Dates des achats dans la période (triées)
+    // Trouver les indices où un nouvel achat a eu lieu dans la période
     const periodStartTs = refTs[validIdx[0]];
-    const buyTs = POS
+    const buyDates = POS
       .map(p => new Date(p.date).getTime()/1000)
       .filter(ts => ts > periodStartTs)
-      .sort((a,b)=>a-b);
+      .sort((a,b) => a-b);
 
-    // Pour chaque sous-période, trouver l'index dans rawValues
-    const splitPoints = [0];
-    buyTs.forEach(bts => {
-      // Trouver l'index dans validIdx le plus proche de cette date
+    // Construire les "breakpoints" dans rawValues
+    const splits = [0];
+    buyDates.forEach(bts => {
       let closest = 0, minD = Infinity;
-      validIdx.forEach((gi,i) => {
-        const d = Math.abs(refTs[gi] - bts);
-        if(d < minD){ minD=d; closest=i; }
-      });
-      if(closest > 0 && closest < n-1 && !splitPoints.includes(closest))
-        splitPoints.push(closest);
+      for(let i=1; i<n-1; i++){
+        const d = Math.abs(refTs[validIdx[i]] - bts);
+        if(d < minD){ minD = d; closest = i; }
+      }
+      if(!splits.includes(closest)) splits.push(closest);
     });
-    splitPoints.push(n-1);
+    splits.push(n - 1);
+    splits.sort((a,b) => a-b);
 
-    // Calculer le rendement composé TWR
+    // TWR = produit des rendements de chaque sous-période
+    // Sur chaque sous-période, la valeur de départ est APRÈS l'apport
+    // donc on compare vEnd(i) / vStart(i+1 debut) = performance pure
     let twr = 1;
-    for(let i=0; i<splitPoints.length-1; i++){
-      const vStart = rawValues[splitPoints[i]];
-      const vEnd   = rawValues[splitPoints[i+1]];
-      if(vStart > 0) twr *= (vEnd / vStart);
+    for(let i = 0; i < splits.length - 1; i++){
+      const vS = rawValues[splits[i]];
+      const vE = rawValues[splits[i+1]];
+      if(vS > 0) twr *= (vE / vS);
     }
     const twrPct = (twr - 1) * 100;
 
-    // PV/MV en € = différence pure sur la dernière sous-période
-    // (valeur actuelle vs valeur au début de la période ajustée)
-    const pnlEur = rawValues[n-1] - rawValues[splitPoints[splitPoints.length-2]];
+    // € badge = TWR appliqué à la mise initiale de la période
+    const initialInvested = rawValues[splits[0]];
+    const twrEur = initialInvested * (twr - 1);
 
     const pvElH  = document.getElementById('h-pv');
     const pctElH = document.getElementById('h-pct');
     if(pvElH){
-      pvElH.textContent = (twrPct>=0?'+€':'-€') + fmt(Math.abs(rawValues[n-1]-rawValues[0]));
-      pvElH.className   = 'badge ' + (twrPct>=0?'bg':'br');
+      pvElH.textContent = (twrEur>=0?'+€':'-€') + fmt(Math.abs(twrEur));
+      pvElH.className   = 'badge ' + (twrEur>=0?'bg':'br');
     }
     if(pctElH){
       pctElH.textContent = (twrPct>=0?'+':'') + fmt(Math.abs(twrPct)) + '%';
