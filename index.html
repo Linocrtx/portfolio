@@ -466,6 +466,30 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .btn-cancel:hover{border-color:var(--text);color:var(--text)}
 .btn-edit{background:none;border:none;color:var(--dim);cursor:pointer;padding:4px 6px;border-radius:var(--r);font-size:13px;transition:all .12s;margin-right:2px}
 .btn-edit:hover{color:var(--blue)}
+
+/* ── POSITIONS TABLE DASHBOARD ── */
+.pos-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden;box-shadow:var(--sh);margin-bottom:1.75rem}
+.pos-table{width:100%;border-collapse:collapse}
+.pos-table thead th{background:var(--card2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.pos-table thead th:first-child{text-align:left;padding-left:16px}
+.pos-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+.pos-table tbody tr:last-child{border-bottom:none}
+.pos-table tbody tr:hover{background:var(--card2)}
+.pos-table td{padding:11px 14px;text-align:right;font-size:13px;color:var(--text);vertical-align:middle}
+.pos-table td:first-child{text-align:left;padding-left:16px}
+.pos-table tfoot td{background:var(--card2);border-top:2px solid var(--border);font-size:13px;font-weight:600;padding:10px 14px;text-align:right}
+.pos-table tfoot td:first-child{text-align:left;padding-left:16px;font-weight:400;font-size:11px;color:var(--muted)}
+.pt-logo{width:32px;height:32px;border-radius:50%;background:var(--card2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0;overflow:hidden}
+.pt-logo img{width:100%;height:100%;object-fit:contain;padding:5px;border-radius:50%}
+.pt-name{font-size:13px;font-weight:600;color:var(--text)}
+.pt-ticker{font-size:11px;color:var(--muted);margin-top:1px}
+.pt-perf{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.pt-bar{width:40px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0}
+.pt-bar-fill{height:100%;border-radius:2px}
+.pt-weight{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.pt-wbar{width:36px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0}
+.pt-wbar-fill{height:100%;background:var(--blue);border-radius:2px}
+
 </style>
 </head>
 <body>
@@ -1151,30 +1175,44 @@ function renderMainChart(){
 }
 
 function renderPosCards(){
-  const el=document.getElementById('pos-cards');
-  const title=document.getElementById('pos-title');
-  if(!POS.length){if(el)el.innerHTML='';if(title)title.textContent='';return;}
-  if(title)title.textContent='Ma performance \u00B7 '+POS.length+' position'+(POS.length>1?'s':'');
-  el.innerHTML=POS.map((p,i)=>{
-    const r=rt(p.currency||'EUR'),v=p.price*p.qty*r,pnl=(p.price-p.pru)*p.qty*r,pct=(p.price-p.pru)/p.pru*100;
-    const s=sy(),cc=CC[i%CC.length];
-    const init=p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase();
-    const chgBg=pct>0?'var(--green-bg)':pct<0?'var(--red-bg)':'var(--bg)';
-    const chgFg=pct>0?'var(--green)':pct<0?'var(--red)':'var(--muted)';
-    const pLogo=getLogo(p.ticker);
-    const pIcon=pLogo
-      ?`<div class="pc-icon pc-logo" id="pi-${p.id}"><img src="${pLogo}" alt="${init}" loading="lazy" onerror="var p2=document.getElementById('pi-${p.id}');p2.classList.remove('pc-logo');p2.style.background='${cc.bg}';p2.style.color='${cc.fg}';p2.textContent='${init}';"></div>`
-      :`<div class="pc-icon" style="background:${cc.bg};color:${cc.fg};">${init}</div>`;
-    return`<div class="pos-card">
-      <div class="pc-top">${pIcon}
-      <span class="badge" style="background:${chgBg};color:${chgFg};border-color:transparent;">${sg(pct)}${fmt(Math.abs(pct))}%</span></div>
-      <div class="pc-name">${p.name}</div><div class="pc-ticker">${p.ticker}</div>
-      <div class="pc-spark"><canvas id="sp-${p.id}" width="180" height="36"></canvas></div>
-      <div class="pc-val">${s}${fmt(v)}</div>
-      <div class="pc-pv" style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</div>
-    </div>`;
+  var el    = document.getElementById('pos-cards');
+  var title = document.getElementById('pos-title');
+  if(!POS.length){ if(el) el.innerHTML=''; if(title) title.textContent=''; return; }
+
+  var sorted   = POS.slice().sort(function(a,b){return (b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR'));});
+  var totalVal = sorted.reduce(function(s,p){return s+p.price*p.qty*rt(p.currency||'EUR');},0)||1;
+  var totalInv = sorted.reduce(function(s,p){return s+p.pru*p.qty*rt(p.currency||'EUR');},0)||1;
+  var totalPnl = totalVal - totalInv;
+  if(title) title.textContent = 'Ma performance \u00B7 '+POS.length+' position'+(POS.length>1?'s':'');
+
+  function mkLogo(p,i){
+    var cc=CC[i%CC.length], init=p.ticker.replace(/\.[A-Z]+$/,'').slice(0,2).toUpperCase(), logo=getLogo(p.ticker);
+    if(logo) return '<div class="pt-logo" id="ptl-'+p.id+'"><img src="'+logo+'" alt="'+init+'" loading="lazy" onerror="this.parentNode.innerHTML=\''+init+'\';this.parentNode.style.background=\''+cc.bg+'\';this.parentNode.style.color=\''+cc.fg+'\'"></div>';
+    return '<div class="pt-logo" style="background:'+cc.bg+';color:'+cc.fg+';">'+init+'</div>';
+  }
+
+  var rows = sorted.map(function(p,i){
+    var r2=rt(p.currency||'EUR'), val=p.price*p.qty*r2, inv=p.pru*p.qty*r2, pnl=val-inv;
+    var pct=p.pru>0?((p.price-p.pru)/p.pru*100):0, w=val/totalVal*100, bw=Math.min(Math.abs(pct)*3,100).toFixed(0);
+    var pc=pct>=0?'var(--green)':'var(--red)', nc=pnl>=0?'var(--green)':'var(--red)';
+    return '<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:10px;">'+mkLogo(p,i)+'<div><div class="pt-name">'+p.name+'</div><div class="pt-ticker">'+p.ticker+'</div></div></div></td>'
+      +'<td style="color:var(--muted)">'+p.qty+'</td>'
+      +'<td>\u20AC'+fmt(p.pru)+'</td>'
+      +'<td style="font-weight:500">\u20AC'+fmt(p.price)+'</td>'
+      +'<td><div class="pt-perf"><span style="color:'+pc+';font-weight:500;min-width:52px">'+sg(pct)+fmt(Math.abs(pct))+'%</span><div class="pt-bar"><div class="pt-bar-fill" style="width:'+bw+'%;background:'+pc+'"></div></div></div></td>'
+      +'<td style="font-weight:500">\u20AC'+fmt(val)+'</td>'
+      +'<td style="color:'+nc+';font-weight:500">'+sg(pnl)+'\u20AC'+fmt(Math.abs(pnl))+'</td>'
+      +'<td><div class="pt-weight"><span style="color:var(--muted);font-size:11px;min-width:34px">'+w.toFixed(1)+'%</span><div class="pt-wbar"><div class="pt-wbar-fill" style="width:'+w.toFixed(0)+'%"></div></div></div></td>'
+      +'</tr>';
   }).join('');
-  renderSparklines();
+
+  var tc=totalPnl>=0?'var(--green)':'var(--red)';
+  el.innerHTML='<div class="pos-table-wrap"><table class="pos-table">'
+    +'<thead><tr><th>Instrument</th><th>Qt\u00e9</th><th>PRU</th><th>Cours</th><th style="text-align:right">Perf.</th><th>Valeur</th><th>+/- val.</th><th>Poids</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr><td colspan="5">Total portefeuille</td><td>\u20AC'+fmt(totalVal)+'</td><td style="color:'+tc+'">'+sg(totalPnl)+'\u20AC'+fmt(Math.abs(totalPnl))+'</td><td style="color:var(--muted);font-size:11px;text-align:right">100%</td></tr></tfoot>'
+    +'</table></div>';
 }
 
 function renderSparklines(){
