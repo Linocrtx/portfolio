@@ -472,7 +472,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .pos-table{width:100%;border-collapse:collapse}
 .pos-table thead th{background:var(--card2);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 .pos-table thead th:first-child{text-align:left;padding-left:16px}
-.pos-table thead th[onclick]:hover{background:rgba(0,0,0,.04);color:var(--text)}
 .pos-table tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
 .pos-table tbody tr:last-child{border-bottom:none}
 .pos-table tbody tr:hover{background:var(--card2)}
@@ -1181,14 +1180,16 @@ function renderPosCards(){
   var title = document.getElementById('pos-title');
   if(!POS.length){ if(el) el.innerHTML=''; if(title) title.textContent=''; return; }
 
-  var _sfn={
-    val:function(a,b){return (b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR'));},
-    pct:function(a,b){return ((b.price-b.pru)/b.pru*100)-((a.price-a.pru)/a.pru*100);},
-    pnl:function(a,b){return ((b.price-b.pru)*b.qty*rt(b.currency||'EUR'))-((a.price-a.pru)*a.qty*rt(a.currency||'EUR'));},
-    qty:function(a,b){return b.qty-a.qty;},
-    name:function(a,b){return a.name.localeCompare(b.name);}
-  };
-  var sorted=POS.slice().sort(function(a,b){return (_sfn[POS_SORT.col]||_sfn.val)(a,b)*POS_SORT.dir;});
+  var _d=POS_SORT.dir;
+  var sorted=POS.slice().sort(function(a,b){
+    var v;
+    if(POS_SORT.col==='pct')      v=((b.price-b.pru)/b.pru*100)-((a.price-a.pru)/a.pru*100);
+    else if(POS_SORT.col==='pnl') v=((b.price-b.pru)*b.qty*rt(b.currency||'EUR'))-((a.price-a.pru)*a.qty*rt(a.currency||'EUR'));
+    else if(POS_SORT.col==='qty') v=b.qty-a.qty;
+    else if(POS_SORT.col==='name')v=a.name.localeCompare(b.name);
+    else                           v=(b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR'));
+    return v*_d;
+  });
   var totalVal = sorted.reduce(function(s,p){return s+p.price*p.qty*rt(p.currency||'EUR');},0)||1;
   var totalInv = sorted.reduce(function(s,p){return s+p.pru*p.qty*rt(p.currency||'EUR');},0)||1;
   var totalPnl = totalVal - totalInv;
@@ -1217,12 +1218,19 @@ function renderPosCards(){
   }).join('');
 
   var tc=totalPnl>=0?'var(--green)':'var(--red)';
+  var _s=POS_SORT;
+  var _thead='<thead><tr>'
+    +'<th onclick="sortPosTable(\'name\')" style="cursor:pointer;user-select:none;text-align:left;padding-left:16px">Instrument'+(_s.col==='name'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
+    +'<th style="text-align:right">Qté</th>'
+    +'<th>PRU</th>'
+    +'<th>Cours</th>'
+    +'<th onclick="sortPosTable(\'pct\')" style="cursor:pointer;user-select:none;text-align:right">Perf.'+(_s.col==='pct'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
+    +'<th onclick="sortPosTable(\'val\')" style="cursor:pointer;user-select:none;text-align:right">Valeur'+(_s.col==='val'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
+    +'<th onclick="sortPosTable(\'pnl\')" style="cursor:pointer;user-select:none;text-align:right">+/- val.'+(_s.col==='pnl'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
+    +'<th style="text-align:right">Poids</th>'
+    +'</tr></thead>';
   el.innerHTML='<div class="pos-table-wrap"><table class="pos-table">'
-    (function(){
-    var s=POS_SORT,d=s.dir===-1?'▼':'▲',none='';
-    function h(col,lbl,r){var ar=s.col===col?' <span style="font-size:9px">'+d+'</span>':none;return '<th onclick="sortPosTable(\''+col+'\')" style="cursor:pointer;user-select:none'+(r?';text-align:right':'')+'">'+(r?'':'')+lbl+ar+'</th>';}
-    return '<thead><tr>'+h('name','Instrument',false)+'<th style="text-align:right">Qté</th><th>PRU</th><th>Cours</th>'+h('pct','Perf.',true)+h('val','Valeur',true)+h('pnl','+/- val.',true)+'<th style="text-align:right">Poids</th></tr></thead>';
-  })()
+    +_thead
     +'<tbody>'+rows+'</tbody>'
     +'<tfoot><tr><td colspan="5">Total portefeuille</td><td>\u20AC'+fmt(totalVal)+'</td><td style="color:'+tc+'">'+sg(totalPnl)+'\u20AC'+fmt(Math.abs(totalPnl))+'</td><td style="color:var(--muted);font-size:11px;text-align:right">100%</td></tr></tfoot>'
     +'</table></div>';
