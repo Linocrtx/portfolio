@@ -490,6 +490,18 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .pt-wbar{width:36px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0}
 .pt-wbar-fill{height:100%;background:var(--blue);border-radius:2px}
 
+
+/* ── CAMEMBERTS ── */
+.pie-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:700px){.pie-grid{grid-template-columns:1fr}}
+.pie-wrap{display:flex;align-items:center;gap:18px;padding-top:8px}
+.pie-canvas-wrap{position:relative;width:110px;height:110px;flex-shrink:0}
+.pie-legend{flex:1;display:flex;flex-direction:column;gap:5px}
+.pie-legend-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text2)}
+.pie-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pie-legend-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pie-legend-pct{font-size:11px;font-weight:600;color:var(--text);margin-left:auto}
+
 </style>
 </head>
 <body>
@@ -608,6 +620,24 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     </div>
   </div>
   <div class="pos-grid" id="watch-grid"></div>
+</div>
+
+
+<div class="pie-grid">
+  <div class="card">
+    <div class="card-hd">Secteurs</div>
+    <div class="pie-wrap">
+      <div class="pie-canvas-wrap"><canvas id="c-sector" width="110" height="110"></canvas></div>
+      <div class="pie-legend" id="legend-sector"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Géographie</div>
+    <div class="pie-wrap">
+      <div class="pie-canvas-wrap"><canvas id="c-geo" width="110" height="110"></canvas></div>
+      <div class="pie-legend" id="legend-geo"></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1044,6 +1074,7 @@ function renderDash(){
   renderAllocBars(val);
   renderPnlChart();
   updatePeriodBadges();
+  renderPies();
 }
 
 function renderMainChart(){
@@ -1673,6 +1704,137 @@ function sortPosTable(col){
   if(POS_SORT.col===col) POS_SORT.dir*=-1;
   else{POS_SORT.col=col;POS_SORT.dir=-1;}
   renderPosCards();
+}
+
+// ═══ SECTEURS & GÉOGRAPHIE ══════════════════
+var SECTOR_MAP = {
+  // France
+  'AI.PA':'Industrie','AIR.PA':'Industrie','ACA.PA':'Finance','BNP.PA':'Finance',
+  'CA.PA':'Consommation','CAP.PA':'Technologie','CS.PA':'Finance','DG.PA':'Industrie',
+  'DSY.PA':'Technologie','EL.PA':'Santé','ENGI.PA':'Énergie','GLE.PA':'Finance',
+  'HO.PA':'Industrie','KER.PA':'Luxe','LR.PA':'Industrie','MC.PA':'Luxe',
+  'ML.PA':'Industrie','OR.PA':'Luxe','ORA.PA':'Télécom','PUB.PA':'Médias',
+  'RI.PA':'Luxe','RMS.PA':'Luxe','RNO.PA':'Automobile','SAF.PA':'Industrie',
+  'SAN.PA':'Santé','SGO.PA':'Matériaux','STM.PA':'Technologie','SU.PA':'Industrie',
+  'TTE.PA':'Énergie','VIE.PA':'Services','FDJU.PA':'Loisirs','FDJ.PA':'Loisirs',
+  'ALMDT.PA':'Santé',
+  // Europe
+  'SAP.DE':'Technologie','BMW.DE':'Automobile','SIE.DE':'Industrie','ALV.DE':'Finance',
+  'BAYN.DE':'Santé','ADS.DE':'Consommation','VOW3.DE':'Automobile','DTE.DE':'Télécom',
+  'ASML.AS':'Technologie','NESN.SW':'Consommation','ROG.SW':'Santé','NOVN.SW':'Santé',
+  'AZN.L':'Santé','SHEL.L':'Énergie','ULVR.L':'Consommation','BP.L':'Énergie',
+  'HSBA.L':'Finance',
+  // USA
+  'AAPL':'Technologie','MSFT':'Technologie','GOOGL':'Technologie','AMZN':'Consommation',
+  'NVDA':'Technologie','META':'Technologie','TSLA':'Automobile','JPM':'Finance',
+  'V':'Finance','JNJ':'Santé','WMT':'Consommation','MA':'Finance','AVGO':'Technologie',
+  'AMD':'Technologie','NFLX':'Médias','DIS':'Médias','INTC':'Technologie',
+  'CRM':'Technologie','ORCL':'Technologie','BA':'Industrie','GS':'Finance',
+  'MS':'Finance','UBER':'Services','COIN':'Finance','PLTR':'Technologie',
+  'SBUX':'Consommation','NKE':'Consommation','KO':'Consommation','PEP':'Consommation',
+  'MCD':'Consommation','XOM':'Énergie','CVX':'Énergie',
+  // Crypto
+  'BTC-USD':'Crypto','ETH-USD':'Crypto','BNB-USD':'Crypto','SOL-USD':'Crypto','XRP-USD':'Crypto',
+};
+
+var GEO_MAP = {
+  'AI.PA':'France','AIR.PA':'Europe','ACA.PA':'France','BNP.PA':'France',
+  'CA.PA':'France','CAP.PA':'France','CS.PA':'France','DG.PA':'France',
+  'DSY.PA':'France','EL.PA':'Europe','ENGI.PA':'France','GLE.PA':'France',
+  'HO.PA':'France','KER.PA':'France','LR.PA':'France','MC.PA':'France',
+  'ML.PA':'France','OR.PA':'France','ORA.PA':'France','PUB.PA':'France',
+  'RI.PA':'France','RMS.PA':'France','RNO.PA':'France','SAF.PA':'France',
+  'SAN.PA':'France','SGO.PA':'France','STM.PA':'Europe','SU.PA':'France',
+  'TTE.PA':'France','VIE.PA':'France','FDJU.PA':'France','FDJ.PA':'France',
+  'ALMDT.PA':'France',
+  'SAP.DE':'Europe','BMW.DE':'Europe','SIE.DE':'Europe','ALV.DE':'Europe',
+  'BAYN.DE':'Europe','ADS.DE':'Europe','VOW3.DE':'Europe','DTE.DE':'Europe',
+  'ASML.AS':'Europe','NESN.SW':'Europe','ROG.SW':'Europe','NOVN.SW':'Europe',
+  'AZN.L':'Europe','SHEL.L':'Europe','ULVR.L':'Europe','BP.L':'Europe','HSBA.L':'Europe',
+  'AAPL':'USA','MSFT':'USA','GOOGL':'USA','AMZN':'USA','NVDA':'USA',
+  'META':'USA','TSLA':'USA','JPM':'USA','V':'USA','JNJ':'USA','WMT':'USA',
+  'MA':'USA','AVGO':'USA','AMD':'USA','NFLX':'USA','DIS':'USA','INTC':'USA',
+  'CRM':'USA','ORCL':'USA','BA':'USA','GS':'USA','MS':'USA','UBER':'USA',
+  'COIN':'USA','PLTR':'USA','SBUX':'USA','NKE':'USA','KO':'USA','PEP':'USA',
+  'MCD':'USA','XOM':'USA','CVX':'USA',
+  'BTC-USD':'Global','ETH-USD':'Global','BNB-USD':'Global','SOL-USD':'Global','XRP-USD':'Global',
+};
+
+var PIE_COLORS = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#db2777','#059669','#ca8a04','#6366f1'];
+
+function renderPies(){
+  if(!POS.length) return;
+
+  function buildData(mapObj, fallback){
+    var totals = {};
+    POS.forEach(function(p){
+      var key = mapObj[p.ticker] || fallback;
+      var val = p.price * p.qty * rt(p.currency||'EUR');
+      totals[key] = (totals[key]||0) + val;
+    });
+    var entries = Object.keys(totals).map(function(k){ return {label:k, val:totals[k]}; });
+    entries.sort(function(a,b){ return b.val-a.val; });
+    var total = entries.reduce(function(s,e){ return s+e.val; }, 0);
+    return {entries:entries, total:total};
+  }
+
+  function drawPie(canvasId, legendId, data){
+    killChart(canvasId);
+    var canvas = document.getElementById(canvasId);
+    var legendEl = document.getElementById(legendId);
+    if(!canvas || !legendEl) return;
+
+    var labels = data.entries.map(function(e){ return e.label; });
+    var vals   = data.entries.map(function(e){ return e.val; });
+
+    CH[canvasId] = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: vals,
+          backgroundColor: PIE_COLORS.slice(0, labels.length),
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverBorderWidth: 3,
+        }]
+      },
+      options: {
+        responsive: false,
+        cutout: '65%',
+        plugins: {
+          legend: {display: false},
+          tooltip: {
+            backgroundColor: '#fff',
+            titleColor: '#1a1a1a',
+            bodyColor: '#555',
+            borderColor: '#ebebeb',
+            borderWidth: 1,
+            callbacks: {
+              label: function(c){
+                var pct = (c.raw / data.total * 100).toFixed(1);
+                return ' ' + pct + '% — €' + fmt(c.raw);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    legendEl.innerHTML = data.entries.map(function(e, i){
+      var pct = (e.val / data.total * 100).toFixed(1);
+      return '<div class="pie-legend-item">'
+        +'<div class="pie-dot" style="background:'+PIE_COLORS[i%PIE_COLORS.length]+'"></div>'
+        +'<span class="pie-legend-lbl">'+e.label+'</span>'
+        +'<span class="pie-legend-pct">'+pct+'%</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  var sectorData = buildData(SECTOR_MAP, 'Autre');
+  var geoData    = buildData(GEO_MAP, 'Autre');
+  drawPie('c-sector', 'legend-sector', sectorData);
+  drawPie('c-geo',    'legend-geo',    geoData);
 }
 </script>
 
