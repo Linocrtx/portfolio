@@ -696,7 +696,54 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
   </div>
 </div>
 
+
+<div class="page" id="page-ressources">
+  <div class="res-total" id="res-total" style="display:none">
+    <div><div class="res-total-label">Total épargne &amp; ressources</div><div class="res-total-val" id="res-total-val">€0</div></div>
+    <div class="res-total-sub">Inclus dans le patrimoine total — hors calcul de perf.</div>
+  </div>
+  <div class="res-grid">
+    <div class="res-card"><div class="res-icon">🏦</div><div class="res-label">Livret A</div><div class="res-val" id="res-la-val">€0</div><div class="res-row"><input class="res-input" id="res-la" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('la')"><button class="res-btn" onclick="saveRes('la')">OK</button></div><div class="res-hint">Taux 2.4 % · Plafond 22 950 €</div></div>
+    <div class="res-card"><div class="res-icon">🐥</div><div class="res-label">Livret Jeune</div><div class="res-val" id="res-lj-val">€0</div><div class="res-row"><input class="res-input" id="res-lj" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('lj')"><button class="res-btn" onclick="saveRes('lj')">OK</button></div><div class="res-hint">Taux 3 % · Plafond 1 600 €</div></div>
+    <div class="res-card"><div class="res-icon">🛡</div><div class="res-label">Assurance Vie</div><div class="res-val" id="res-av-val">€0</div><div class="res-row"><input class="res-input" id="res-av" type="number" min="0" step="1" placeholder="Valeur en €" onkeydown="if(event.key==='Enter')saveRes('av')"><button class="res-btn" onclick="saveRes('av')">OK</button></div><div class="res-hint">Valeur de rachat actuelle</div></div>
+    <div class="res-card"><div class="res-icon">🏠</div><div class="res-label">PEL / CEL</div><div class="res-val" id="res-pel-val">€0</div><div class="res-row"><input class="res-input" id="res-pel" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('pel')"><button class="res-btn" onclick="saveRes('pel')">OK</button></div><div class="res-hint">Plan / Compte épargne logement</div></div>
+    <div class="res-card"><div class="res-icon">💰</div><div class="res-label">Compte courant</div><div class="res-val" id="res-cc-val">€0</div><div class="res-row"><input class="res-input" id="res-cc" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('cc')"><button class="res-btn" onclick="saveRes('cc')">OK</button></div><div class="res-hint">Liquidités disponibles</div></div>
+    <div class="res-card"><div class="res-icon">📦</div><div class="res-label">Autre</div><div class="res-val" id="res-autre-val">€0</div><div class="res-row"><input class="res-input" id="res-autre" type="number" min="0" step="1" placeholder="Montant en €" onkeydown="if(event.key==='Enter')saveRes('autre')"><button class="res-btn" onclick="saveRes('autre')">OK</button></div><div class="res-hint">Crypto, or, divers…</div></div>
+  </div>
+</div>
+
 <script>
+// ═══ RESSOURCES ═════════════════════════════
+var RES_KEYS=['la','lj','av','pel','cc','autre'];
+var RES=JSON.parse(localStorage.getItem('lp_res')||'{}');
+RES_KEYS.forEach(function(k){if(!RES[k])RES[k]=0;});
+function saveResStorage(){localStorage.setItem('lp_res',JSON.stringify(RES));}
+function resTotal(){return RES_KEYS.reduce(function(s,k){return s+(RES[k]||0);},0);}
+function renderRessources(){
+  RES_KEYS.forEach(function(k){
+    var v=RES[k]||0;
+    var el=document.getElementById('res-'+k+'-val');
+    var inp=document.getElementById('res-'+k);
+    if(el) el.textContent='€'+v.toLocaleString('fr-FR');
+    if(inp&&v>0) inp.value=v;
+  });
+  var tot=resTotal();
+  var tc=document.getElementById('res-total');
+  var tv=document.getElementById('res-total-val');
+  if(tc) tc.style.display=tot>0?'flex':'none';
+  if(tv) tv.textContent='€'+tot.toLocaleString('fr-FR');
+}
+function saveRes(key){
+  var inp=document.getElementById('res-'+key);
+  var v=parseFloat(inp?inp.value:0)||0;
+  RES[key]=Math.max(0,v);
+  saveResStorage();
+  renderRessources();
+  renderDash();
+  toast('Enregistré ✓','tok');
+}
+
+
 
 
 // ── LOGOS via Clearbit ──────────────────────────────
@@ -1858,36 +1905,6 @@ function renderPies(){
   drawPie('c-sector', 'legend-sector', sectorData);
   drawPie('c-geo',    'legend-geo',    geoData);
 }
-
-// ═══ RESSOURCES ═════════════════════════════
-var RES_KEYS=['la','lj','av','pel','cc','autre'];
-var RES=JSON.parse(localStorage.getItem('lp_res')||'{}');
-RES_KEYS.forEach(function(k){if(!RES[k])RES[k]=0;});
-function saveResStorage(){localStorage.setItem('lp_res',JSON.stringify(RES));}
-function resTotal(){return RES_KEYS.reduce(function(s,k){return s+(RES[k]||0);},0);}
-function renderRessources(){
-  RES_KEYS.forEach(function(k){
-    var v=RES[k]||0;
-    var el=document.getElementById('res-'+k+'-val');
-    var inp=document.getElementById('res-'+k);
-    if(el) el.textContent='€'+v.toLocaleString('fr-FR');
-    if(inp&&v>0) inp.value=v;
-  });
-  var tot=resTotal();
-  var tc=document.getElementById('res-total');
-  var tv=document.getElementById('res-total-val');
-  if(tc) tc.style.display=tot>0?'flex':'none';
-  if(tv) tv.textContent='€'+tot.toLocaleString('fr-FR');
-}
-function saveRes(key){
-  var inp=document.getElementById('res-'+key);
-  var v=parseFloat(inp?inp.value:0)||0;
-  RES[key]=Math.max(0,v);
-  saveResStorage();
-  renderRessources();
-  renderDash();
-  toast('Enregistré ✓','tok');
-}
 </script>
 
 <!-- EDIT MODAL -->
@@ -1901,19 +1918,6 @@ function saveRes(key){
     </div>
   </div>
 </div>
-<div class="page" id="page-ressources">
-  <div class="res-total" id="res-total" style="display:none">
-    <div><div class="res-total-label">Total épargne &amp; ressources</div><div class="res-total-val" id="res-total-val">€0</div></div>
-    <div class="res-total-sub">Inclus dans le patrimoine total — hors calcul de perf.</div>
-  </div>
-  <div class="res-grid">
-    <div class="res-card"><div class="res-icon">🏦</div><div class="res-label">Livret A</div><div class="res-val" id="res-la-val">€0</div><div class="res-row"><input class="res-input" id="res-la" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('la')"><button class="res-btn" onclick="saveRes('la')">OK</button></div><div class="res-hint">Taux 2.4 % · Plafond 22 950 €</div></div>
-    <div class="res-card"><div class="res-icon">🐥</div><div class="res-label">Livret Jeune</div><div class="res-val" id="res-lj-val">€0</div><div class="res-row"><input class="res-input" id="res-lj" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('lj')"><button class="res-btn" onclick="saveRes('lj')">OK</button></div><div class="res-hint">Taux 3 % · Plafond 1 600 €</div></div>
-    <div class="res-card"><div class="res-icon">🛡</div><div class="res-label">Assurance Vie</div><div class="res-val" id="res-av-val">€0</div><div class="res-row"><input class="res-input" id="res-av" type="number" min="0" step="1" placeholder="Valeur en €" onkeydown="if(event.key==='Enter')saveRes('av')"><button class="res-btn" onclick="saveRes('av')">OK</button></div><div class="res-hint">Valeur de rachat actuelle</div></div>
-    <div class="res-card"><div class="res-icon">🏠</div><div class="res-label">PEL / CEL</div><div class="res-val" id="res-pel-val">€0</div><div class="res-row"><input class="res-input" id="res-pel" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('pel')"><button class="res-btn" onclick="saveRes('pel')">OK</button></div><div class="res-hint">Plan / Compte épargne logement</div></div>
-    <div class="res-card"><div class="res-icon">💰</div><div class="res-label">Compte courant</div><div class="res-val" id="res-cc-val">€0</div><div class="res-row"><input class="res-input" id="res-cc" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('cc')"><button class="res-btn" onclick="saveRes('cc')">OK</button></div><div class="res-hint">Liquidités disponibles</div></div>
-    <div class="res-card"><div class="res-icon">📦</div><div class="res-label">Autre</div><div class="res-val" id="res-autre-val">€0</div><div class="res-row"><input class="res-input" id="res-autre" type="number" min="0" step="1" placeholder="Montant en €" onkeydown="if(event.key==='Enter')saveRes('autre')"><button class="res-btn" onclick="saveRes('autre')">OK</button></div><div class="res-hint">Crypto, or, divers…</div></div>
-  </div>
-</div>
+
 </body>
 </html>
