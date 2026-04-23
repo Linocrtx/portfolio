@@ -553,6 +553,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
   <div class="metrics" id="metrics"></div>
   <div class="card" style="margin-bottom:16px;">
     <div class="card-hd"><span>Evolution du patrimoine</span><div class="pbtns" style="margin-left:auto;">
+        <button class="pbtn" onclick="setPer('1D',this)">1J</button>
         <button class="pbtn" onclick="setPer('1W',this)">1S</button>
         <button class="pbtn on" onclick="setPer('1M',this)">1M</button>
         <button class="pbtn" onclick="setPer('3M',this)">3M</button>
@@ -1168,7 +1169,7 @@ function renderMainChart(){
 
   // Période
   const now = Date.now()/1000;
-  const periodDays={'1W':7,'1M':30,'3M':90,'6M':183,'1Y':365,'3Y':1095,'5Y':1825}[PERIOD]||30;
+  const periodDays={'1D':1,'1W':7,'1M':30,'3M':90,'6M':183,'1Y':365,'3Y':1095,'5Y':1825}[PERIOD]||30;
   const periodStart = PERIOD==='YTD'
     ? new Date(new Date().getFullYear(),0,1).getTime()/1000
     : now - periodDays*86400;
