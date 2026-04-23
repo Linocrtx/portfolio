@@ -902,7 +902,8 @@ async function getPrice(ticker){
   if(!meta) return null;
   const closes=(d.chart.result[0].indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
   const price=meta.regularMarketPrice;
-  const prev=meta.chartPreviousClose||meta.previousClose||price;
+  // Variation du jour = prix actuel vs clôture d'hier (regularMarketPreviousClose est le plus fiable)
+  const prevClose = meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.previousClose || price;
   const timestamps=(d.chart.result[0].timestamp||[]);
 
   // Fetch intraday (1h interval, 5 days) for 1J view
@@ -915,7 +916,7 @@ async function getPrice(ticker){
   }
 
   return{
-    price,chg:prev?((price-prev)/prev*100):0,
+    price,chg:prevClose?((price-prevClose)/prevClose*100):0,
     name:meta.longName||meta.shortName||ticker,
     currency:getCurrencyFromTicker(ticker, meta.currency),
     history:closes,timestamps,
