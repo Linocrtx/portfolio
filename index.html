@@ -933,7 +933,7 @@ async function refreshAll(){
     const r=await getPrice(t);
     if(!r) return;
     ok++;
-    POS.forEach(p=>{if(p.ticker===t){p.price=r.price;p.history=r.history;p.timestamps=r.timestamps||[];p.historyIntraday=r.historyIntraday||[];p.timestampsIntraday=r.timestampsIntraday||[];p.name=r.name||p.name;p.currency=r.currency||p.currency;}});
+    POS.forEach(p=>{if(p.ticker===t){p.price=r.price;p.chgDay=r.chg;p.history=r.history;p.timestamps=r.timestamps||[];p.historyIntraday=r.historyIntraday||[];p.timestampsIntraday=r.timestampsIntraday||[];p.name=r.name||p.name;p.currency=r.currency||p.currency;}});
     WATCH.forEach(w=>{if(w.ticker===t){w.price=r.price;w.chg=r.chg;w.history=r.history;w.name=r.name||w.name;}});
   }));
   save();renderDash();renderPosTable();renderWatchGrid();
@@ -1325,7 +1325,7 @@ function renderPosCards(){
       +'<td style="color:var(--muted)">'+p.qty+'</td>'
       +'<td>\u20AC'+fmt(p.pru)+'</td>'
       +'<td style="font-weight:500">\u20AC'+fmt(p.price)+'</td>'
-      +'<td><div class="pt-perf"><span style="color:'+pc+';font-weight:500;min-width:52px">'+sg(pct)+fmt(Math.abs(pct))+'%</span><div class="pt-bar"><div class="pt-bar-fill" style="width:'+bw+'%;background:'+pc+'"></div></div></div></td>'
+      +'<td style="text-align:right">'+(p.chgDay!=null  ?'<span style="color:'+(p.chgDay>=0?'var(--green)':'var(--red)')+';font-weight:500">'+(p.chgDay>=0?'+':'')+fmt(Math.abs(p.chgDay))+'%</span>'  :'<span style="color:var(--dim)">—</span>')+'</td>'+'<td><div class="pt-perf"><span style="color:'+pc+';font-weight:500;min-width:52px">'+sg(pct)+fmt(Math.abs(pct))+'%</span><div class="pt-bar"><div class="pt-bar-fill" style="width:'+bw+'%;background:'+pc+'"></div></div></div></td>'
       +'<td style="font-weight:500">\u20AC'+fmt(val)+'</td>'
       +'<td style="color:'+nc+';font-weight:500">'+sg(pnl)+'\u20AC'+fmt(Math.abs(pnl))+'</td>'
       +'<td><div class="pt-weight"><span style="color:var(--muted);font-size:11px;min-width:34px">'+w.toFixed(1)+'%</span><div class="pt-wbar"><div class="pt-wbar-fill" style="width:'+w.toFixed(0)+'%"></div></div></div></td>'
@@ -1339,6 +1339,7 @@ function renderPosCards(){
     +'<th style="text-align:right">Qté</th>'
     +'<th>PRU</th>'
     +'<th>Cours</th>'
+    +'<th style="text-align:right">Var. jour</th>'
     +'<th onclick="sortPosTable(\'pct\')" style="cursor:pointer;user-select:none;text-align:right">Perf.'+(_s.col==='pct'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
     +'<th onclick="sortPosTable(\'val\')" style="cursor:pointer;user-select:none;text-align:right">Valeur'+(_s.col==='val'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
     +'<th onclick="sortPosTable(\'pnl\')" style="cursor:pointer;user-select:none;text-align:right">+/- val.'+(_s.col==='pnl'?(_s.dir===-1?' &#9660;':' &#9650;'):'')+'</th>'
@@ -1347,7 +1348,7 @@ function renderPosCards(){
   el.innerHTML='<div class="pos-table-wrap"><table class="pos-table">'
     +_thead
     +'<tbody>'+rows+'</tbody>'
-    +'<tfoot><tr><td colspan="5">Total portefeuille</td><td>\u20AC'+fmt(totalVal)+'</td><td style="color:'+tc+'">'+sg(totalPnl)+'\u20AC'+fmt(Math.abs(totalPnl))+'</td><td style="color:var(--muted);font-size:11px;text-align:right">100%</td></tr></tfoot>'
+    +'<tfoot><tr><td colspan="6">Total portefeuille</td><td>\u20AC'+fmt(totalVal)+'</td><td style="color:'+tc+'">'+sg(totalPnl)+'\u20AC'+fmt(Math.abs(totalPnl))+'</td><td style="color:var(--muted);font-size:11px;text-align:right">100%</td></tr></tfoot>'
     +'</table></div>';
 }
 
