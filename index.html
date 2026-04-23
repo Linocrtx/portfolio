@@ -894,6 +894,7 @@ function getCurrencyFromTicker(ticker, yahooCurrency){
 }
 
 async function getPrice(ticker){
+  // Fetch 5Y daily data
   const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5y`;
   const d=await fetchY(url);
   if(!d) return null;
@@ -903,11 +904,22 @@ async function getPrice(ticker){
   const price=meta.regularMarketPrice;
   const prev=meta.chartPreviousClose||meta.previousClose||price;
   const timestamps=(d.chart.result[0].timestamp||[]);
+
+  // Fetch intraday (1h interval, 5 days) for 1J view
+  let historyIntraday=[], timestampsIntraday=[];
+  const url1d=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1h&range=5d`;
+  const d1d=await fetchY(url1d);
+  if(d1d?.chart?.result?.[0]){
+    historyIntraday=(d1d.chart.result[0].indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
+    timestampsIntraday=(d1d.chart.result[0].timestamp||[]);
+  }
+
   return{
     price,chg:prev?((price-prev)/prev*100):0,
     name:meta.longName||meta.shortName||ticker,
     currency:getCurrencyFromTicker(ticker, meta.currency),
     history:closes,timestamps,
+    historyIntraday,timestampsIntraday,
     high52:meta.fiftyTwoWeekHigh,low52:meta.fiftyTwoWeekLow,
   };
 }
@@ -921,7 +933,7 @@ async function refreshAll(){
     const r=await getPrice(t);
     if(!r) return;
     ok++;
-    POS.forEach(p=>{if(p.ticker===t){p.price=r.price;p.history=r.history;p.timestamps=r.timestamps||[];p.name=r.name||p.name;p.currency=r.currency||p.currency;}});
+    POS.forEach(p=>{if(p.ticker===t){p.price=r.price;p.history=r.history;p.timestamps=r.timestamps||[];p.historyIntraday=r.historyIntraday||[];p.timestampsIntraday=r.timestampsIntraday||[];p.name=r.name||p.name;p.currency=r.currency||p.currency;}});
     WATCH.forEach(w=>{if(w.ticker===t){w.price=r.price;w.chg=r.chg;w.history=r.history;w.name=r.name||w.name;}});
   }));
   save();renderDash();renderPosTable();renderWatchGrid();
@@ -1157,9 +1169,14 @@ function renderMainChart(){
   // Premier achat
   const firstPurchase = POS.map(p=>new Date(p.date)).reduce((a,b)=>a<b?a:b);
 
-  // Timeline de référence = position avec le plus de timestamps
-  const refPos = POS.reduce((a,b)=>(b.timestamps?.length||0)>(a.timestamps?.length||0)?b:a);
-  const refTs  = refPos.timestamps||[];
+  // Pour 1J, utiliser les données intraday (horaires)
+  const useIntraday = PERIOD==='1D';
+  const refPos = POS.reduce((a,b)=>{
+    const al = useIntraday?(a.timestampsIntraday?.length||0):(a.timestamps?.length||0);
+    const bl = useIntraday?(b.timestampsIntraday?.length||0):(b.timestamps?.length||0);
+    return bl>al?b:a;
+  });
+  const refTs = useIntraday ? (refPos.timestampsIntraday||[]) : (refPos.timestamps||[]);
 
   if(refTs.length < 2){
     const ctx=canvas.getContext('2d');canvas.width=canvas.parentElement.offsetWidth||600;canvas.height=200;ctx.clearRect(0,0,canvas.width,200);
@@ -1186,7 +1203,8 @@ function renderMainChart(){
   // Calcul du portefeuille jour par jour
   // Chaque position n'entre qu'à partir de sa date d'achat
   const getPriceAt = (p, ts) => {
-    const h=p.history||[], pts=p.timestamps||[];
+    const h   = useIntraday ? (p.historyIntraday||p.history||[]) : (p.history||[]);
+    const pts = useIntraday ? (p.timestampsIntraday||p.timestamps||[]) : (p.timestamps||[]);
     if(!h.length) return p.price;
     if(pts.length>0){
       let pi=0, minD=Math.abs(pts[0]-ts);
