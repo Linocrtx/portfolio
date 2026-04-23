@@ -571,9 +571,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <div class="card"><div class="card-hd">Repartition</div><div id="alloc-bars"></div></div>
     <div class="card"><div class="card-hd">PV/MV realisees cumulees</div><div class="chart-box"><canvas id="c-pnl"></canvas></div></div>
   </div>
-</div>
 
-<!-- ACHATS -->
 <div class="pie-grid">
   <div class="card">
     <div class="card-hd">Secteurs</div>
@@ -590,7 +588,9 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     </div>
   </div>
 </div>
+</div>
 
+<!-- ACHATS -->
 <div class="page" id="page-achats">
   <div class="fc">
     <div class="ft">Enregistrer un achat</div>
@@ -659,8 +659,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 </div>
 
 
-
-
 <div class="toast" id="toast"></div>
 
 
@@ -697,7 +695,6 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     </div>
   </div>
 </div>
-
 
 <div class="page" id="page-ressources">
   <div class="res-total" id="res-total" style="display:none">
@@ -1358,33 +1355,20 @@ function renderSparklines(){
 function renderAllocBars(tv){
   const el=document.getElementById('alloc-bars');
   if(!el) return;
-
-  // Épargne de sécurité = Livret A + Livret Jeune + Assurance Vie
-  const epargne = (RES&&RES.la||0) + (RES&&RES.lj||0) + (RES&&RES.av||0);
-
-  if(!POS.length && epargne===0){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:.5rem 0;">Aucune position</div>';return;}
-
-  const totalActions = tv||Math.max(POS.reduce((s,p)=>s+p.price*p.qty*rt(p.currency||'EUR'),0),0.01);
-  const totalGlobal  = totalActions + epargne;
+  const epargne=(RES&&RES.la||0)+(RES&&RES.lj||0)+(RES&&RES.av||0);
+  if(!POS.length&&epargne===0){el.innerHTML='<div style="color:var(--muted);font-size:12px;padding:.5rem 0;">Aucune position</div>';return;}
+  const totalActions=tv||Math.max(POS.reduce((s,p)=>s+p.price*p.qty*rt(p.currency||'EUR'),0),0.01);
+  const totalGlobal=totalActions+epargne;
   const sorted=[...POS].sort((a,b)=>(b.price*b.qty*rt(b.currency||'EUR'))-(a.price*a.qty*rt(a.currency||'EUR')));
-
-  let rows = sorted.map((p,i)=>{
-    const v=p.price*p.qty*rt(p.currency||'EUR'), pct=Math.max(v/totalGlobal*100,0.5);
+  let rows=sorted.map((p,i)=>{
+    const v=p.price*p.qty*rt(p.currency||'EUR'),pct=Math.max(v/totalGlobal*100,0.5);
     return`<div class="alloc-item"><div class="alloc-lbl" title="${p.name}">${p.ticker}</div><div class="alloc-bar"><div class="alloc-fill" style="width:${pct.toFixed(0)}%;background:${COLORS[i%COLORS.length]};"></div></div><div class="alloc-pct">${pct.toFixed(0)}%</div><div class="alloc-amt">${sy()}${fmt(v)}</div></div>`;
   }).join('');
-
-  // Ajouter la ligne épargne de sécurité si > 0
-  if(epargne > 0){
-    const pctE = (epargne/totalGlobal*100);
-    rows += `<div class="alloc-item" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
-      <div class="alloc-lbl" title="Livret A + Livret Jeune + Assurance Vie" style="color:var(--green);font-size:10px;">🛡️ Sécurité</div>
-      <div class="alloc-bar"><div class="alloc-fill" style="width:${pctE.toFixed(0)}%;background:var(--green);"></div></div>
-      <div class="alloc-pct" style="color:var(--green)">${pctE.toFixed(0)}%</div>
-      <div class="alloc-amt" style="color:var(--green)">${sy()}${fmt(epargne)}</div>
-    </div>`;
+  if(epargne>0){
+    const pctE=epargne/totalGlobal*100;
+    rows+=`<div class="alloc-item" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><div class="alloc-lbl" style="color:var(--green);font-size:10px">🛡️ Sécurité</div><div class="alloc-bar"><div class="alloc-fill" style="width:${pctE.toFixed(0)}%;background:var(--green)"></div></div><div class="alloc-pct" style="color:var(--green)">${pctE.toFixed(0)}%</div><div class="alloc-amt" style="color:var(--green)">${sy()}${fmt(epargne)}</div></div>`;
   }
-
-  el.innerHTML = rows;
+  el.innerHTML=rows;
 }
 
 function renderPnlChart(){
@@ -1940,6 +1924,5 @@ function renderPies(){
     </div>
   </div>
 </div>
-
 </body>
 </html>
