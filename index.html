@@ -520,8 +520,9 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 .res-total-val{font-size:22px;font-weight:500;letter-spacing:-.5px;color:var(--green)}
 .res-total-sub{font-size:11px;color:var(--green);opacity:.7}
 
-.btn-cloture-pos{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:var(--r);font-size:11px;font-weight:500;font-family:var(--font);transition:all .12s;white-space:nowrap}.btn-cloture-pos:hover{color:var(--red);background:var(--red-bg)}
 
+.btn-vendre{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:var(--r);font-size:11px;font-weight:500;font-family:var(--font);transition:all .12s;white-space:nowrap}
+.btn-vendre:hover{color:var(--red);background:var(--red-bg)}
 .cloture-overlay{display:none;position:fixed;inset:0;z-index:9000;background:rgba(26,26,26,.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:1.5rem}
 .cloture-overlay.on{display:flex}
 .cloture-modal{background:var(--card);border:1px solid var(--border);border-radius:var(--r3);box-shadow:var(--sh3);width:100%;max-width:420px;padding:26px}
@@ -724,7 +725,16 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
     <div class="res-total-sub">Inclus dans le patrimoine total — hors calcul de perf.</div>
   </div>
   <div class="res-grid">
-    <div class="res-card"><div class="res-icon">🏦</div><div class="res-label">Livret A</div><div class="res-val" id="res-la-val">€0</div><div class="res-row"><input class="res-input" id="res-la" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('la')"><button class="res-btn" onclick="saveRes('la')">OK</button></div><div class="res-hint">Taux 2.4 % · Plafond
+    <div class="res-card"><div class="res-icon">🏦</div><div class="res-label">Livret A</div><div class="res-val" id="res-la-val">€0</div><div class="res-row"><input class="res-input" id="res-la" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('la')"><button class="res-btn" onclick="saveRes('la')">OK</button></div><div class="res-hint">Taux 2.4 % · Plafond 22 950 €</div></div>
+    <div class="res-card"><div class="res-icon">🐥</div><div class="res-label">Livret Jeune</div><div class="res-val" id="res-lj-val">€0</div><div class="res-row"><input class="res-input" id="res-lj" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('lj')"><button class="res-btn" onclick="saveRes('lj')">OK</button></div><div class="res-hint">Taux 3 % · Plafond 1 600 €</div></div>
+    <div class="res-card"><div class="res-icon">🛡</div><div class="res-label">Assurance Vie</div><div class="res-val" id="res-av-val">€0</div><div class="res-row"><input class="res-input" id="res-av" type="number" min="0" step="1" placeholder="Valeur en €" onkeydown="if(event.key==='Enter')saveRes('av')"><button class="res-btn" onclick="saveRes('av')">OK</button></div><div class="res-hint">Valeur de rachat actuelle</div></div>
+    <div class="res-card"><div class="res-icon">🏠</div><div class="res-label">PEL / CEL</div><div class="res-val" id="res-pel-val">€0</div><div class="res-row"><input class="res-input" id="res-pel" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('pel')"><button class="res-btn" onclick="saveRes('pel')">OK</button></div><div class="res-hint">Plan / Compte épargne logement</div></div>
+    <div class="res-card"><div class="res-icon">💰</div><div class="res-label">Compte courant</div><div class="res-val" id="res-cc-val">€0</div><div class="res-row"><input class="res-input" id="res-cc" type="number" min="0" step="1" placeholder="Solde en €" onkeydown="if(event.key==='Enter')saveRes('cc')"><button class="res-btn" onclick="saveRes('cc')">OK</button></div><div class="res-hint">Liquidités disponibles</div></div>
+    <div class="res-card"><div class="res-icon">📦</div><div class="res-label">Autre</div><div class="res-val" id="res-autre-val">€0</div><div class="res-row"><input class="res-input" id="res-autre" type="number" min="0" step="1" placeholder="Montant en €" onkeydown="if(event.key==='Enter')saveRes('autre')"><button class="res-btn" onclick="saveRes('autre')">OK</button></div><div class="res-hint">Crypto, or, divers…</div></div>
+  </div>
+</div>
+
+<script>
 // ═══ RESSOURCES ═════════════════════════════
 var RES_KEYS=['la','lj','av','pel','cc','autre'];
 var RES=JSON.parse(localStorage.getItem('lp_res')||'{}');
@@ -1452,7 +1462,7 @@ function renderPosTable(){
   let html='<table><thead><tr><th>Valeur</th><th>Date</th><th>PRU</th><th>Qte</th><th>Cours</th><th>Investi</th><th>Valeur act.</th><th>PV/MV</th><th>%</th><th></th></tr></thead><tbody>';
   POS.forEach(p=>{
     const s=sy(),inv=p.pru*p.qty,v=p.price*p.qty,pnl=v-inv,pct=(p.price-p.pru)/p.pru*100;
-    html+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input class="ci" type="number" value="${fmt(p.price)}" onchange="updPrice(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td><span class="pvb ${pnl>=0?'pvg':'pvr'}">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</span></td><td style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pct)}${fmt(Math.abs(pct))}%</td><td><button class="btn-edit" onclick="openEditPos(${p.id})" title="Modifier">&#9998;</button><button class="btn-edit" onclick="openEditPos(${p.id})" title="Modifier">&#9998;</button><button class="btn-cloture-pos" onclick="openCloture(${p.id})" title="Vendre / Clôturer">Vendre</button><button class="del-btn" onclick="delPos(${p.id})" title="Supprimer">&#10005;</button></td></tr>`;
+    html+=`<tr><td><div class="tsym">${p.ticker}</div><div class="tname">${p.name}</div></td><td>${p.date}</td><td>${s}${fmt(p.pru)}</td><td>${p.qty}</td><td><input class="ci" type="number" value="${fmt(p.price)}" onchange="updPrice(${p.id},this.value)"></td><td>${s}${fmt(inv)}</td><td>${s}${fmt(v)}</td><td><span class="pvb ${pnl>=0?'pvg':'pvr'}">${sg(pnl)}${s}${fmt(Math.abs(pnl))}</span></td><td style="color:${pct>=0?'var(--green)':'var(--red)'};">${sg(pct)}${fmt(Math.abs(pct))}%</td><td><button class="btn-edit" onclick="openEditPos(${p.id})" title="Modifier">&#9998;</button><button class="btn-vendre" onclick="openCloture(${p.id})">Vendre</button><button class="del-btn" onclick="delPos(${p.id})" title="Supprimer">&#10005;</button></td></tr>`;
   });
   el.innerHTML=html+'</tbody></table>';
 }
@@ -1965,21 +1975,19 @@ function renderPies(){
   drawPie('c-geo',    'legend-geo',    geoData);
 }
 
-// ═══ CLÔTURE DE POSITION ════════════════════
-let _clId = null;
+// ═══ VENDRE / CLÔTURER ══════════════════════
+var _clId = null;
 
 function openCloture(id){
-  const p = POS.find(x=>x.id===id);
+  var p = POS.find(function(x){return x.id===id;});
   if(!p) return;
   _clId = id;
-
   document.getElementById('cl-title').textContent = 'Vendre — ' + p.name;
   document.getElementById('cl-sub').textContent   = p.ticker + ' · ' + p.qty + ' action' + (p.qty>1?'s':'') + ' · PRU €' + p.pru.toFixed(2);
   document.getElementById('cl-qty').value   = p.qty;
   document.getElementById('cl-price').value = p.price > 0 ? p.price.toFixed(2) : '';
   document.getElementById('cl-date').value  = new Date().toISOString().split('T')[0];
   document.getElementById('cl-frais').value = '';
-
   updateCloturePreview();
   document.getElementById('cloture-overlay').classList.add('on');
   document.body.style.overflow = 'hidden';
@@ -1992,132 +2000,40 @@ function closeCloture(){
 }
 
 function updateCloturePreview(){
-  const p = POS.find(x=>x.id===_clId);
+  var p = POS.find(function(x){return x.id===_clId;});
   if(!p) return;
-  const qty   = parseFloat(document.getElementById('cl-qty').value)   || 0;
-  const price = parseFloat(document.getElementById('cl-price').value) || 0;
-  const frais = parseFloat(document.getElementById('cl-frais').value) || 0;
-  const gross = (price - p.pru) * qty;
-  const pnl   = gross - frais;
-  const pct   = p.pru > 0 ? (pnl / (p.pru * qty) * 100) : 0;
-  const rest  = p.qty - qty;
-  const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
-
-  document.getElementById('cl-preview').innerHTML = `
-    <div class="cloture-preview-row">
-      <span style="color:var(--muted)">Montant de la vente</span>
-      <span>${price > 0 ? price*qty+'\u20ac' : '\u2014'}</span>
-    </div>
-    ${frais > 0 ? '<div class="cloture-preview-row"><span style="color:var(--muted)">Frais</span><span style="color:var(--red)">-'+frais+'\u20ac</span></div>' : ''}
-    <div class="cloture-preview-row">
-      <span style="color:var(--muted)">Actions restantes</span>
-      <span>${rest >= 0 ? rest : '<span style="color:var(--red)">Quantit\u00e9 invalide</span>'}</span>
-    </div>
-    <div class="cloture-preview-row">
-      <span>PV / MV nette</span>
-      <span style="color:${pnlColor}">${pnl>=0?'+':''}${pnl.toFixed(2)}\u20ac (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>
-    </div>
-  `;
+  var qty   = parseFloat(document.getElementById('cl-qty').value)   || 0;
+  var price = parseFloat(document.getElementById('cl-price').value) || 0;
+  var frais = parseFloat(document.getElementById('cl-frais').value) || 0;
+  var pnl   = (price - p.pru) * qty - frais;
+  var pct   = p.pru > 0 ? (pnl / (p.pru * qty) * 100) : 0;
+  var rest  = p.qty - qty;
+  var pc    = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('cl-preview').innerHTML =
+    '<div class="cloture-preview-row"><span style="color:var(--muted)">Montant brut</span><span>' + (price>0?(price*qty).toFixed(2)+'€':'—') + '</span></div>' +
+    (frais>0?'<div class="cloture-preview-row"><span style="color:var(--muted)">Frais</span><span style="color:var(--red)">-'+frais.toFixed(2)+'€</span></div>':'')+
+    '<div class="cloture-preview-row"><span style="color:var(--muted)">Actions restantes</span><span>' + (rest>=0?rest:'<span style="color:var(--red)">invalide</span>') + '</span></div>' +
+    '<div class="cloture-preview-row"><span>PV / MV nette</span><span style="color:'+pc+'">'+(pnl>=0?'+':'')+pnl.toFixed(2)+'€ ('+(pct>=0?'+':'')+pct.toFixed(2)+'%)</span></div>';
 }
 
 function confirmCloture(){
-  const p = POS.find(x=>x.id===_clId);
+  var p = POS.find(function(x){return x.id===_clId;});
   if(!p) return;
-
-  const qty   = parseFloat(document.getElementById('cl-qty').value);
-  const price = parseFloat(document.getElementById('cl-price').value);
-  const date  = document.getElementById('cl-date').value;
-  const frais = parseFloat(document.getElementById('cl-frais').value)||0;
-
-  if(isNaN(qty)||qty<=0)          { toast('Quantit\u00e9 invalide','ter'); return; }
-  if(isNaN(price)||price<=0)      { toast('Prix invalide','ter'); return; }
-  if(!date)                        { toast('Date manquante','ter'); return; }
-  if(qty > p.qty + 0.0001)        { toast('Quantit\u00e9 sup\u00e9rieure \u00e0 la position','ter'); return; }
-
-  const pnl = (price - p.pru) * qty - frais;
-
-  SALES.push({
-    id:Date.now(), ticker:p.ticker, name:p.name, date, pru:p.pru,
-    sell:price, qty, frais, pnl, currency:p.currency||'EUR',
-  });
-
-  const rest = parseFloat((p.qty - qty).toFixed(10));
-  if(rest < 0.0001){
-    POS = POS.filter(x=>x.id !== _clId);
-  } else {
-    p.qty = rest;
-  }
-
+  var qty   = parseFloat(document.getElementById('cl-qty').value);
+  var price = parseFloat(document.getElementById('cl-price').value);
+  var date  = document.getElementById('cl-date').value;
+  var frais = parseFloat(document.getElementById('cl-frais').value)||0;
+  if(isNaN(qty)||qty<=0)         { toast('Quantité invalide','ter'); return; }
+  if(isNaN(price)||price<=0)     { toast('Prix invalide','ter'); return; }
+  if(!date)                      { toast('Date manquante','ter'); return; }
+  if(qty > p.qty + 0.0001)      { toast('Quantité trop grande','ter'); return; }
+  var pnl = (price - p.pru) * qty - frais;
+  SALES.push({id:Date.now(),ticker:p.ticker,name:p.name,date:date,pru:p.pru,sell:price,qty:qty,frais:frais,pnl:pnl,currency:p.currency||'EUR'});
+  var rest = parseFloat((p.qty - qty).toFixed(10));
+  if(rest < 0.0001){ POS = POS.filter(function(x){return x.id!==_clId;}); }
+  else { p.qty = rest; }
   save(); closeCloture(); renderPosTable(); renderSaleTable(); renderDash();
-  toast((rest<0.0001?p.ticker+' cl\u00f4tur\u00e9':qty+' '+p.ticker+' vendu(s)') + ' · '+(pnl>=0?'+':'')+pnl.toFixed(2)+'\u20ac', pnl>=0?'tok':'');
-}
-urrency||'EUR');
-      totals[key] = (totals[key]||0) + val;
-    });
-    var entries = Object.keys(totals).map(function(k){ return {label:k, val:totals[k]}; });
-    entries.sort(function(a,b){ return b.val-a.val; });
-    var total = entries.reduce(function(s,e){ return s+e.val; }, 0);
-    return {entries:entries, total:total};
-  }
-
-  function drawPie(canvasId, legendId, data){
-    killChart(canvasId);
-    var canvas = document.getElementById(canvasId);
-    var legendEl = document.getElementById(legendId);
-    if(!canvas || !legendEl) return;
-
-    var labels = data.entries.map(function(e){ return e.label; });
-    var vals   = data.entries.map(function(e){ return e.val; });
-
-    CH[canvasId] = new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: vals,
-          backgroundColor: PIE_COLORS.slice(0, labels.length),
-          borderWidth: 2,
-          borderColor: '#fff',
-          hoverBorderWidth: 3,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        cutout: '65%',
-        plugins: {
-          legend: {display: false},
-          tooltip: {
-            backgroundColor: '#fff',
-            titleColor: '#1a1a1a',
-            bodyColor: '#555',
-            borderColor: '#ebebeb',
-            borderWidth: 1,
-            callbacks: {
-              label: function(c){
-                var pct = (c.raw / data.total * 100).toFixed(1);
-                return ' ' + pct + '% — €' + fmt(c.raw);
-              }
-            }
-          }
-        }
-      }
-    });
-
-    legendEl.innerHTML = data.entries.map(function(e, i){
-      var pct = (e.val / data.total * 100).toFixed(1);
-      return '<div class="pie-legend-item">'
-        +'<div class="pie-dot" style="background:'+PIE_COLORS[i%PIE_COLORS.length]+'"></div>'
-        +'<span class="pie-legend-lbl">'+e.label+'</span>'
-        +'<span class="pie-legend-pct">'+pct+'%</span>'
-        +'</div>';
-    }).join('');
-  }
-
-  var sectorData = buildData(SECTOR_MAP, 'Autre');
-  var geoData    = buildData(GEO_MAP, 'Autre');
-  drawPie('c-sector', 'legend-sector', sectorData);
-  drawPie('c-geo',    'legend-geo',    geoData);
+  toast((rest<0.0001?p.ticker+' vendu':qty+' '+p.ticker+' vendu(s)') + ' · '+(pnl>=0?'+':'')+pnl.toFixed(2)+'€', pnl>=0?'tok':'');
 }
 </script>
 
@@ -2129,24 +2045,6 @@ urrency||'EUR');
     <div class="edit-actions">
       <button class="btn-cancel" onclick="closeEdit()">Annuler</button>
       <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-<div class="cloture-overlay" id="cloture-overlay" onclick="if(event.target===this)closeCloture()">
-  <div class="cloture-modal">
-    <div class="cloture-title" id="cl-title">Vendre</div>
-    <div class="cloture-sub" id="cl-sub"></div>
-    <div class="cloture-fields">
-      <div class="cloture-fg"><label>Quantité vendue</label><input id="cl-qty" type="number" min="0.001" step="any" oninput="updateCloturePreview()"></div>
-      <div class="cloture-fg"><label>Prix de vente (€)</label><input id="cl-price" type="number" min="0" step="0.01" oninput="updateCloturePreview()"></div>
-      <div class="cloture-fg"><label>Date de vente</label><input id="cl-date" type="date"></div>
-      <div class="cloture-fg"><label>Frais de courtage (€) <span style="font-weight:400;color:var(--dim)">— optionnel</span></label><input id="cl-frais" type="number" min="0" step="0.01" placeholder="0.00" oninput="updateCloturePreview()"></div>
-    </div>
-    <div class="cloture-preview" id="cl-preview"></div>
-    <div class="cloture-actions">
-      <button class="btn-cloture-cancel" onclick="closeCloture()">Annuler</button>
-      <button class="btn-cloture" onclick="confirmCloture()">Confirmer la vente</button>
     </div>
   </div>
 </div>
