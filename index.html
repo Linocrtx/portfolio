@@ -1057,11 +1057,31 @@ const sg=n=>n>=0?'+':'';
 function addPos(){
   const t=gv('f-t'),n=gv('f-n'),d=gv('f-d'),p=parseFloat(gv('f-p')),q=parseFloat(gv('f-q')),c=gv('f-c');
   if(!t||!d||isNaN(p)||isNaN(q)||p<=0||q<=0){toast('Remplis tous les champs','ter');return;}
-  POS.push({id:Date.now(),ticker:t.toUpperCase(),name:n||t,date:d,pru:p,qty:q,currency:c,price:p,history:[]});
+
+  const ticker = t.toUpperCase();
+  const existing = POS.find(x=>x.ticker===ticker);
+
+  if(existing){
+    // Position existante — demander confirmation pour renforcer
+    const newPru = (existing.pru*existing.qty + p*q) / (existing.qty + q);
+    if(!confirm('Tu as déjà '+existing.qty+' '+ticker+' au PRU de €'+existing.pru.toFixed(2)+'\n\nRenforcement : +'+q+' au prix de €'+p.toFixed(2)+'\nNouveau PRU moyen : €'+newPru.toFixed(2)+'\nNouvelle quantité : '+(existing.qty+q)+'\n\nConfirmer le renforcement ?')) return;
+    existing.pru = parseFloat(newPru.toFixed(4));
+    existing.qty = parseFloat((existing.qty + q).toFixed(10));
+    // Ajouter la tranche dans l'historique des achats pour le graphique
+    if(!existing.tranches) existing.tranches=[];
+    existing.tranches.push({date:d, qty:q, pru:p});
+    save();clearAc();['f-t','f-n','f-d','f-p','f-q'].forEach(id=>document.getElementById(id).value='');
+    renderPosTable();renderDash();
+    toast('Position renforcée — nouveau PRU €'+newPru.toFixed(2),'tok');
+    return;
+  }
+
+  // Nouvelle position
+  POS.push({id:Date.now(),ticker,name:n||t,date:d,pru:p,qty:q,currency:c,price:p,history:[],tranches:[{date:d,qty:q,pru:p}]});
   save();clearAc();['f-t','f-n','f-d','f-p','f-q'].forEach(id=>document.getElementById(id).value='');
   renderPosTable();renderDash();
-  toast('Achat enregistre !','tok');
-  getPrice(t).then(r=>{if(r){const pos=POS[POS.length-1];pos.price=r.price;pos.history=r.history;pos.timestamps=r.timestamps||[];pos.name=r.name||n;pos.currency=r.currency||c;save();renderDash();renderPosTable();}});
+  toast('Achat enregistré ✓','tok');
+  getPrice(t).then(r=>{if(r){const pos=POS[POS.length-1];pos.price=r.price;pos.history=r.history;pos.timestamps=r.timestamps||[];pos.historyIntraday=r.historyIntraday||[];pos.timestampsIntraday=r.timestampsIntraday||[];pos.name=r.name||n;pos.currency=r.currency||c;save();renderDash();renderPosTable();}});
 }
 
 function delPos(id){if(!confirm('Supprimer ?'))return;POS=POS.filter(p=>p.id!==id);save();renderPosTable();renderDash();}
