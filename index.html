@@ -916,18 +916,33 @@ function getCurrencyFromTicker(ticker, yahooCurrency){
 }
 
 async function getPrice(ticker){
-  // Fetch 5Y daily data
-  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5y`;
-  const d=await fetchY(url);
+  // Fetch 5Y daily data + 5d pour variation du jour précise
+  const [d, d5] = await Promise.all([
+    fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5y`),
+    fetchY(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`)
+  ]);
   if(!d) return null;
   const meta=d?.chart?.result?.[0]?.meta;
   if(!meta) return null;
   const closes=(d.chart.result[0].indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
   const price=meta.regularMarketPrice;
   const timestamps=(d.chart.result[0].timestamp||[]);
-  // Variation du jour : on prend les 2 dernières clôtures du range 5d/1d
-  // closes[-1] = hier soir, closes[-2] = avant-hier → chg = (price - closes[-1]) / closes[-1]
-  const prevClose = closes.length >= 1 ? closes[closes.length-1] : price;
+  // Variation du jour : on compare price vs clôture d'avant-hier (c5[-2])
+  // Si marché ouvert  : price != c5[-1] → chg = (price - c5[-1]) / c5[-1]
+  // Si marché fermé   : price == c5[-1] → on utilise c5[-1] vs c5[-2] = variation de la veille
+  let prevClose = price;
+  if(d5?.chart?.result?.[0]){
+    const c5=(d5.chart.result[0].indicators?.quote?.[0]?.close||[]).filter(x=>x!=null);
+    if(c5.length >= 2){
+      const lastClose = c5[c5.length-1];
+      const prevDay   = c5[c5.length-2];
+      // Si le cours actuel est identique à la dernière clôture → marché fermé → variation de la veille
+      const marketClosed = Math.abs(price - lastClose) < 0.001;
+      prevClose = marketClosed ? prevDay : lastClose;
+    } else if(c5.length === 1){
+      prevClose = c5[0];
+    }
+  }
 
   // Fetch intraday (1h interval, 5 days) for 1J view
   let historyIntraday=[], timestampsIntraday=[];
