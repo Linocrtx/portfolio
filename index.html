@@ -1186,6 +1186,13 @@ function renderDash(){
   const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0);
   const total=lat+realPnl;
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
+  const _yr=new Date().getFullYear();
+  const _sytd=SALES.filter(s=>new Date(s.date).getFullYear()===_yr).reduce((a,s)=>a+(s.pnl||0),0);
+  const _ytdEur=_sytd+lat;
+  const _bYtd=POS.filter(p=>new Date(p.date).getFullYear()===_yr).reduce((a,p)=>a+p.pru*p.qty*rt(p.currency||'EUR'),0);
+  const _scYtd=SALES.filter(s=>new Date(s.date).getFullYear()===_yr).reduce((a,s)=>a+s.pru*s.qty,0);
+  const _capBase=Math.max(inv-_bYtd+_scYtd,0.01);
+  const _ytdPct=_ytdEur/_capBase*100;
 
   document.getElementById('h-val').innerHTML=fmt(val+resTotal())+' <span class="cur">\u20AC</span>';
   const pvEl=document.getElementById('h-pv');
@@ -1203,7 +1210,7 @@ function renderDash(){
     <div class="metric"><div class="ml">PV/MV latentes</div><div class="mv ${cl(lat)}">${sg(lat)}\u20AC${fmt(Math.abs(lat))}</div><div class="ms ${cl(latP)}">${sg(latP)}${fmt(Math.abs(latP))}%</div></div>
     <div class="metric"><div class="ml">PV/MV realisees</div><div class="mv ${cl(realPnl)}">${sg(realPnl)}\u20AC${fmt(Math.abs(realPnl))}</div></div>
     <div class="metric"><div class="ml">P&L total</div><div class="mv ${cl(total)}">${sg(total)}\u20AC${fmt(Math.abs(total))}</div></div>
-    ${cagr!==null?`<div class="metric"><div class="ml">CAGR</div><div class="mv ${cl(cagr)}">${sg(cagr)}${fmt(Math.abs(cagr))}%</div></div>`:''}
+    '<div class="metric"><div class="ml">P&amp;L YTD</div><div class="mv '+cl(_ytdEur)+'">'+sg(_ytdEur)+'€'+fmt(Math.abs(_ytdEur))+'</div><div class="ms '+cl(_ytdPct)+'">'+sg(_ytdPct)+fmt(Math.abs(_ytdPct))+'%</div></div>'
   `;
 
   renderMainChart();
