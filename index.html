@@ -658,6 +658,14 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
   </div>
   <div class="sec-t">Historique des ventes</div>
   <div class="tw" id="sale-tbl"></div>
+  <div class="sec-t" style="margin-top:2rem">Dividendes reçus</div>
+  <div class="card" style="margin-bottom:1.5rem;padding:20px"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:var(--muted);font-weight:500">Ticker</label><input id="div-ticker" type="text" placeholder="ex: AI.PA" style="background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r);width:110px"></div>
+    <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:var(--muted);font-weight:500">Montant net (€)</label><input id="div-amount" type="number" min="0" step="0.01" placeholder="0.00" style="background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r);width:130px"></div>
+    <div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;color:var(--muted);font-weight:500">Date</label><input id="div-date" type="date" style="background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:var(--font);font-size:14px;padding:9px 12px;border-radius:var(--r)"></div>
+    <button onclick="addDiv()" style="background:var(--text);color:#fff;border:none;border-radius:var(--r);padding:10px 18px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer">+ Ajouter</button>
+  </div></div>
+  <div class="tw" id="div-tbl"></div>
 </div>
 
 <!-- SURVEILLANCE -->
@@ -736,6 +744,7 @@ tfoot td:first-child{text-align:left;color:var(--muted);font-weight:400;font-siz
 
 <script>
 // ═══ RESSOURCES ═════════════════════════════
+var DIVS=JSON.parse(localStorage.getItem('lp_divs')||'[]');
 var RES_KEYS=['la','lj','av','pel','cc','autre'];
 var RES=JSON.parse(localStorage.getItem('lp_res')||'{}');
 RES_KEYS.forEach(function(k){if(!RES[k])RES[k]=0;});
@@ -1183,11 +1192,11 @@ function renderDash(){
   let inv=0,val=0;
   POS.forEach(p=>{const r=rt(p.currency||'EUR');inv+=p.pru*p.qty*r;val+=p.price*p.qty*r;});
   const lat=val-inv,latP=inv>0?(lat/inv)*100:0;
-  const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0);
+  const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0)+DIVS.reduce((s,d)=>s+d.amount,0);
   const total=lat+realPnl;
   const cagr=calcCAGR(inv,val,POS.map(p=>p.date).sort()[0]);
   const _yr=new Date().getFullYear();
-  const _sytd=SALES.filter(s=>new Date(s.date).getFullYear()===_yr).reduce((a,s)=>a+(s.pnl||0),0);
+  const _sytd=SALES.filter(s=>new Date(s.date).getFullYear()===_yr).reduce((a,s)=>a+(s.pnl||0),0)+DIVS.filter(d=>new Date(d.date).getFullYear()===_yr).reduce((a,d)=>a+d.amount,0);
   const _ytdEur=_sytd+lat;
   const _bYtd=POS.filter(p=>new Date(p.date).getFullYear()===_yr).reduce((a,p)=>a+p.pru*p.qty*rt(p.currency||'EUR'),0);
   const _scYtd=SALES.filter(s=>new Date(s.date).getFullYear()===_yr).reduce((a,s)=>a+s.pru*s.qty,0);
@@ -1329,7 +1338,7 @@ function renderMainChart(){
   if(pctEl){
     let _inv=0,_val=0;
     POS.forEach(p=>{const r2=rt(p.currency||'EUR');_inv+=p.pru*p.qty*r2;_val+=p.price*p.qty*r2;});
-    const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0);
+    const realPnl=SALES.reduce((s,x)=>s+x.pnl*rt(x.currency||'EUR'),0)+DIVS.reduce((s,d)=>s+d.amount,0);
     const totalPct=_inv>0?((_val-_inv+realPnl)/_inv*100):0;
     pctEl.textContent=(totalPct>=0?'+':'')+fmt(Math.abs(totalPct))+'%';
     pctEl.className='badge '+(totalPct>=0?'bg':'br');
@@ -1572,6 +1581,7 @@ function goPage(id,btn){
   if(id==='ventes')renderSaleTable();
   if(id==='watch')renderWatchGrid();
   if(id==='ressources')renderRessources();
+  if(id==='ventes'){renderSaleTable();renderDivTable();}
 }
 
 setInterval(()=>{
@@ -1583,6 +1593,7 @@ setInterval(()=>{
 renderDash();
 fetchRates().then(()=>{
   renderRessources();
+  renderDivTable();
   if(POS.length||WATCH.length) setTimeout(refreshAll,400);
   else renderDash();
 });
@@ -2057,6 +2068,38 @@ function confirmCloture(){
   else { p.qty = rest; }
   save(); closeCloture(); renderPosTable(); renderSaleTable(); renderDash();
   toast((rest<0.0001?p.ticker+' vendu':qty+' '+p.ticker+' vendu(s)') + ' · '+(pnl>=0?'+':'')+pnl.toFixed(2)+'€', pnl>=0?'tok':'');
+}
+
+// ═══ DIVIDENDES ══════════════════════════════
+function saveDivs(){localStorage.setItem('lp_divs',JSON.stringify(DIVS));}
+function addDiv(){
+  var ticker=(document.getElementById('div-ticker').value||'').toUpperCase().trim();
+  var amount=parseFloat(document.getElementById('div-amount').value)||0;
+  var date=document.getElementById('div-date').value;
+  if(!ticker||amount<=0||!date){toast('Remplis tous les champs','ter');return;}
+  var pos=POS.find(function(p){return p.ticker===ticker;});
+  DIVS.push({id:Date.now(),ticker:ticker,name:pos?pos.name:ticker,amount:amount,date:date});
+  saveDivs();
+  document.getElementById('div-ticker').value='';
+  document.getElementById('div-amount').value='';
+  document.getElementById('div-date').value='';
+  renderDivTable();renderDash();
+  toast('Dividende enregistré ✓','tok');
+}
+function delDiv(id){
+  if(!confirm('Supprimer ?')) return;
+  DIVS=DIVS.filter(function(d){return d.id!==id;});
+  saveDivs();renderDivTable();renderDash();
+}
+function renderDivTable(){
+  var el=document.getElementById('div-tbl');
+  if(!el) return;
+  if(!DIVS.length){el.innerHTML='<div class="empty"><div class="empty-ico">💰</div><div style="font-size:14px;font-weight:600;color:var(--text2)">Aucun dividende</div></div>';return;}
+  var tot=DIVS.reduce(function(s,d){return s+d.amount;},0);
+  var rows=DIVS.slice().sort(function(a,b){return b.date.localeCompare(a.date);}).map(function(d){
+    return '<tr><td><div class="tsym">'+d.ticker+'</div><div class="tname">'+d.name+'</div></td><td>'+d.date+'</td><td><span class="pvb pvg">+€'+fmt(d.amount)+'</span></td><td><button class="del-btn" onclick="delDiv('+d.id+')" title="Supprimer">&#10005;</button></td></tr>';
+  }).join('');
+  el.innerHTML='<table><thead><tr><th>Valeur</th><th>Date</th><th>Montant net</th><th></th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td>Total</td><td></td><td style="color:var(--green);font-weight:600">+€'+fmt(tot)+'</td><td></td></tr></tfoot></table>';
 }
 </script>
 
