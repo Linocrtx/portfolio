@@ -1210,7 +1210,7 @@ function renderDash(){
     <div class="metric"><div class="ml">PV/MV latentes</div><div class="mv ${cl(lat)}">${sg(lat)}\u20AC${fmt(Math.abs(lat))}</div><div class="ms ${cl(latP)}">${sg(latP)}${fmt(Math.abs(latP))}%</div></div>
     <div class="metric"><div class="ml">PV/MV realisees</div><div class="mv ${cl(realPnl)}">${sg(realPnl)}\u20AC${fmt(Math.abs(realPnl))}</div></div>
     <div class="metric"><div class="ml">P&L total</div><div class="mv ${cl(total)}">${sg(total)}\u20AC${fmt(Math.abs(total))}</div></div>
-    '<div class="metric"><div class="ml">P&amp;L YTD</div><div class="mv '+cl(_ytdEur)+'">'+sg(_ytdEur)+'€'+fmt(Math.abs(_ytdEur))+'</div><div class="ms '+cl(_ytdPct)+'">'+sg(_ytdPct)+fmt(Math.abs(_ytdPct))+'%</div></div>'
+    <div class="metric"><div class="ml">P&L YTD</div><div class="mv ${cl(_ytdEur)}">${sg(_ytdEur)}\u20AC${fmt(Math.abs(_ytdEur))}</div><div class="ms ${cl(_ytdPct)}">${sg(_ytdPct)}${fmt(Math.abs(_ytdPct))}%</div></div>
   `;
 
   renderMainChart();
